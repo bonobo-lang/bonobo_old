@@ -6,24 +6,16 @@ import thosakwe.strongly_typed.compiler.CodeBuilder;
 import thosakwe.strongly_typed.lang.STInteger;
 import thosakwe.strongly_typed.lang.errors.CompilerError;
 
-import java.util.ArrayList;
-import java.util.List;
+public class CReturnStatement extends CStatement {
+    private final CExpression returnValue;
 
-public class CBlock implements CAstNode {
-    private final List<CStatement> statements = new ArrayList<>();
+    public CReturnStatement(CExpression returnValue) {
+        super();
+        this.returnValue = returnValue;
+    }
 
     @Override
     public void apply(CodeBuilder builder, Scope symbolTable) throws CompilerError {
-        builder.indent();
-
-        for (CStatement stmt: statements) {
-            stmt.apply(builder, symbolTable);
-        }
-
-        builder.outdent();
-    }
-
-    public List<CStatement> getStatements() {
-        return statements;
+        builder.println(String.format("return %s;", returnValue.compileToC(builder)));
     }
 }

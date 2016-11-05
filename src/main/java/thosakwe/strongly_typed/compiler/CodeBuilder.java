@@ -1,10 +1,6 @@
 package thosakwe.strongly_typed.compiler;
 
-import org.antlr.v4.runtime.tree.ParseTree;
-import org.antlr.v4.runtime.tree.TerminalNode;
-
 import java.io.StringWriter;
-import java.util.List;
 
 public class CodeBuilder extends StringWriter {
     private int indentationLevel = 0;

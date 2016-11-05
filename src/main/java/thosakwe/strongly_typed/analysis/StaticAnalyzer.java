@@ -25,14 +25,4 @@ public class StaticAnalyzer extends StronglyTypedBaseVisitor {
     public List<CompilerError> getWarnings() {
         return warnings;
     }
-
-    @Override
-    public Object visitCompilationUnit(StronglyTypedParser.CompilationUnitContext ctx) {
-        for (StronglyTypedParser.TopLevelDefContext def : ctx.topLevelDef()) {
-            if (def instanceof StronglyTypedParser.TopLevelFuncDefContext) {
-                warnings.add(new CompilerError(CompilerError.WARNING, def.getText(), def, symbolTable.sourceFile));
-            }
-        }
-        return super.visitCompilationUnit(ctx);
-    }
 }

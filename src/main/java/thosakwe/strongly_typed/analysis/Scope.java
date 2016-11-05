@@ -1,7 +1,7 @@
 package thosakwe.strongly_typed.analysis;
 
 import org.antlr.v4.runtime.ParserRuleContext;
-import thosakwe.strongly_typed.analysis.Symbol;
+import thosakwe.strongly_typed.compiler.CodeBuilder;
 import thosakwe.strongly_typed.lang.STDatum;
 import thosakwe.strongly_typed.lang.errors.CompilerError;
 
@@ -11,10 +11,28 @@ import java.util.stream.Collectors;
 
 public class Scope {
     private Scope child = null;
+    private final List<ScopeEventListener> eventListeners = new ArrayList<>();
     private final List<Symbol> symbols = new ArrayList<>();
     private Scope parent = null;
     private STDatum thisContext = null;
     String sourceFile = null;
+
+    public void addEventListener(ScopeEventListener listener) {
+        this.eventListeners.add(listener);
+    }
+
+    public Scope create() {
+        final Scope innermost = getInnerMostScope();
+        final Scope child = new Scope();
+        child.parent = innermost;
+        innermost.child = child;
+
+        for (ScopeEventListener listener : eventListeners) {
+            listener.onCreate(child);
+        }
+
+        return child;
+    }
 
     public Scope getInnerMostScope() {
         Scope innermost = this;
@@ -25,12 +43,6 @@ public class Scope {
         return innermost;
     }
 
-    public void create() {
-        final Scope innermost = getInnerMostScope();
-        final Scope child = new Scope();
-        child.parent = innermost;
-        innermost.child = child;
-    }
 
     public Symbol getSymbol(String name) {
         Scope currentScope = getInnerMostScope();
@@ -61,6 +73,10 @@ public class Scope {
 
         if (innermost.parent != null) {
             innermost.parent.child = null;
+        }
+
+        for (ScopeEventListener listener : eventListeners) {
+            listener.onDestroy(innermost);
         }
     }
 
@@ -105,6 +121,10 @@ public class Scope {
 
     public void load(Scope other) {
         load(other, false);
+    }
+
+    public void removeEventListener(ScopeEventListener listener) {
+        this.eventListeners.remove(listener);
     }
 
     public Symbol setFinal(String name, STDatum value, ParserRuleContext source) throws CompilerError {

@@ -1,7 +1,9 @@
 package thosakwe.strongly_typed.compiler.codegen.c;
 
 import org.antlr.v4.runtime.misc.Pair;
+import thosakwe.strongly_typed.analysis.Scope;
 import thosakwe.strongly_typed.compiler.CodeBuilder;
+import thosakwe.strongly_typed.lang.errors.CompilerError;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,7 +14,7 @@ public class CFunctionDeclaration implements CAstNode {
     private List<Pair<String, String>> parameters = new ArrayList<>();
 
     @Override
-    public void apply(CodeBuilder builder) {
+    public void apply(CodeBuilder builder, Scope symbolTable) throws CompilerError {
         builder.print(String.format("%s %s(", returnType, name));
 
         for (int i = 0; i < parameters.size(); i++) {
@@ -24,8 +26,25 @@ public class CFunctionDeclaration implements CAstNode {
             builder.write(String.format("%s %s", param.b, param.a));
         }
 
-        builder.println(")");
-        block.apply(builder);
+        builder.println(") {");
+        block.apply(builder, symbolTable);
+
+        boolean impliedReturn = true;
+
+        for (CStatement stmt : block.getStatements()) {
+            if (stmt instanceof CReturnStatement) {
+                impliedReturn = false;
+                break;
+            }
+        }
+
+        if (impliedReturn) {
+            builder.indent();
+            builder.println("return 0;");
+            builder.outdent();
+        }
+
+        builder.println("}");
     }
 
     public CBlock getBlock() {

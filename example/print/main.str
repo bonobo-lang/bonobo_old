@@ -1,0 +1,10 @@
+// Use the 'print' helper function to print
+// any datum, followed by a newline.
+//
+// Calls to 'print' are expanded into 'printf'
+// calls.
+
+fn main() {
+    print 42;
+    return 0;
+}

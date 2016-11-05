@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+DP0=`dirname $0`
+java -cp "$DP0/../target/strongly-typed-1.0-SNAPSHOT.jar" thosakwe.strongly_typed.cli.Main $@
