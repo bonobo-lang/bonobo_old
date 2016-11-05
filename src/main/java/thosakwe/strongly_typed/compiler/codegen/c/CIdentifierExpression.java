@@ -13,4 +13,9 @@ public class CIdentifierExpression extends CExpression {
     public String compileToC(CodeBuilder builder) {
         return name;
     }
+
+    @Override
+    public Integer getSize() {
+        return -1;
+    }
 }

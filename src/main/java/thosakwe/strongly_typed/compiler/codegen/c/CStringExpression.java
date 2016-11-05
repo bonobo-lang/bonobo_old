@@ -12,14 +12,21 @@ public class CStringExpression extends CExpression {
     @Override
     public String compileToC(CodeBuilder builder) {
         // Todo: Escape everything
-        final String safeString = value
-                .replaceAll("\'", "'")
-                .replaceAll("\"", "\\\"");
-
-        return String.format("\"%s\"", safeString);
+        return String.format("\"%s\"", safeString());
     }
 
     public CStringExpression append(String appendant) {
         return new CStringExpression(value + appendant);
+    }
+
+    @Override
+    public Integer getSize() {
+        return safeString().length();
+    }
+
+    private String safeString() {
+        return value
+                .replaceAll("\'", "'")
+                .replaceAll("\"", "\\\"");
     }
 }

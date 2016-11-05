@@ -6,7 +6,8 @@ import thosakwe.strongly_typed.analysis.Symbol;
 import thosakwe.strongly_typed.compiler.codegen.c.*;
 import thosakwe.strongly_typed.grammar.StronglyTypedParser;
 import thosakwe.strongly_typed.lang.STDatum;
-import thosakwe.strongly_typed.lang.STInteger;
+import thosakwe.strongly_typed.lang.STNumber;
+import thosakwe.strongly_typed.lang.STTupleType;
 import thosakwe.strongly_typed.lang.STType;
 import thosakwe.strongly_typed.lang.errors.CompilerError;
 
@@ -22,6 +23,16 @@ public class CCompiler extends STCompiler<CAstNode> {
     public CCompiler(String sourceFile, boolean debug) {
         this.sourceFile = sourceFile;
         this.debug = debug;
+    }
+
+    private STNumber binaryOnConstantNumbers(Number left, Number right, String op) {
+        // Todo: All operators
+        printDebug(String.format("Compiling binary expression into constant number: %s %s %s...", left, op, right));
+        if (op.equals("^")) return new STNumber(Math.pow(left.doubleValue(), right.doubleValue()));
+        else if (op.equals("+")) return new STNumber(left.doubleValue() + right.doubleValue());
+        else if (op.equals("*")) return new STNumber(left.doubleValue() * right.doubleValue());
+
+        return null;
     }
 
     @Override
@@ -50,6 +61,7 @@ public class CCompiler extends STCompiler<CAstNode> {
                 for (Symbol symbol : scope.getSymbols()) {
                     if (symbol.getValue().isPointer()) {
                         builder.println(String.format("free(%s);", symbol.getName()));
+                        builder.println(String.format("%s = NULL;", symbol.getName()));
                     } else {
                         builder.println(String.format("free(&%s);", symbol.getName()));
                     }
@@ -58,7 +70,31 @@ public class CCompiler extends STCompiler<CAstNode> {
         };
     }
 
+    private STType inferBinaryReturnType(StronglyTypedParser.ExprContext leftExpr, StronglyTypedParser.ExprContext rightExpr, String op) {
+        final STDatum left = resolveExpr(leftExpr);
+        final STDatum right = resolveExpr(rightExpr);
+        printDebug(String.format("Inferring binary: '%s %s %s'...", leftExpr.getText(), op, rightExpr.getText()));
+        printDebug(String.format("Left is a %s, right is a %s", left.getType().toCType(), right.getType().toCType()));
+
+        if (!(left.getType() instanceof STTupleType) && (right.getType() instanceof STTupleType)) {
+            // Operate with tuples on left for the sake of simplicity.
+            return inferBinaryReturnType(rightExpr, leftExpr, op);
+        }
+
+        if (left.getType() instanceof STTupleType) {
+
+        } else {
+            // Todo: Is this too naive?
+            return right.getType();
+        }
+
+        return null;
+    }
+
     private STType inferReturnType(StronglyTypedParser.ExprContext expr) {
+        if (expr instanceof StronglyTypedParser.AdditiveExprContext)
+            return inferBinaryReturnType(((StronglyTypedParser.AdditiveExprContext) expr).left, ((StronglyTypedParser.AdditiveExprContext) expr).right, "+");
+
         if (expr instanceof StronglyTypedParser.IdentifierExprContext) {
             final String name = ((StronglyTypedParser.IdentifierExprContext) expr).ID().getText();
             final Symbol resolved = symbolTable.getSymbol(name);
@@ -76,6 +112,9 @@ public class CCompiler extends STCompiler<CAstNode> {
         }
 
         if (expr instanceof StronglyTypedParser.IntegerLiteralExprContext) return STType.INT32;
+
+        if (expr instanceof StronglyTypedParser.MultiplicativeExprContext)
+            return inferBinaryReturnType(((StronglyTypedParser.MultiplicativeExprContext) expr).left, ((StronglyTypedParser.MultiplicativeExprContext) expr).right, "*");
 
         if (expr instanceof StronglyTypedParser.StringExprContext) return STType.STRING;
 
@@ -150,10 +189,43 @@ public class CCompiler extends STCompiler<CAstNode> {
             System.out.println(msg);
     }
 
-    private STDatum resolveExpr(StronglyTypedParser.ExprContext ctx, boolean throwError) {
-        if (ctx instanceof StronglyTypedParser.IntegerLiteralExprContext) {
-            return new STInteger(Integer.parseInt(ctx.getText()));
+    private STDatum resolveBinary(StronglyTypedParser.ExprContext leftExpr, StronglyTypedParser.ExprContext rightExpr, String op) {
+        final STDatum left = resolveExpr(leftExpr);
+        final STDatum right = resolveExpr(rightExpr);
+        printDebug(String.format("Compiling binary: '%s %s %s'...", leftExpr.getText(), op, rightExpr.getText()));
+        printDebug(String.format("Left is a %s, right is a %s", left.getType().toCType(), right.getType().toCType()));
+
+        if (!(left.getType() instanceof STTupleType) && (right.getType() instanceof STTupleType)) {
+            // Operate with tuples on left for the sake of simplicity.
+            return resolveBinary(rightExpr, leftExpr, op);
         }
+
+        if (left.getType() instanceof STTupleType) {
+
+        } else if (left instanceof STNumber) {
+            // Todo: Caret Operators
+
+            if (right instanceof STNumber) {
+                // If both sides are constant, then we can add them
+                // at compile-time. Hooray for optimization!
+                return binaryOnConstantNumbers(((STNumber) left).getValue(), ((STNumber) right).getValue(), op);
+            }
+        }
+
+        return null;
+    }
+
+    private STDatum resolveExpr(StronglyTypedParser.ExprContext expr, boolean throwError) {
+        if (expr instanceof StronglyTypedParser.AdditiveExprContext)
+            return resolveBinary(((StronglyTypedParser.AdditiveExprContext) expr).left, ((StronglyTypedParser.AdditiveExprContext) expr).right, "+");
+
+        if (expr instanceof StronglyTypedParser.IntegerLiteralExprContext) {
+            return new STNumber(Integer.parseInt(expr.getText()));
+        }
+
+
+        if (expr instanceof StronglyTypedParser.MultiplicativeExprContext)
+            return resolveBinary(((StronglyTypedParser.MultiplicativeExprContext) expr).left, ((StronglyTypedParser.MultiplicativeExprContext) expr).right, "*");
 
         return null;
     }
@@ -178,6 +250,7 @@ public class CCompiler extends STCompiler<CAstNode> {
     }
 
     private CExpression visitExpr(StronglyTypedParser.ExprContext expr) {
+
         if (expr instanceof StronglyTypedParser.IdentifierExprContext) {
             // Todo: Resolve these
             return new CIdentifierExpression(((StronglyTypedParser.IdentifierExprContext) expr).ID().getText());
@@ -279,6 +352,10 @@ public class CCompiler extends STCompiler<CAstNode> {
     private CStatement visitStmt(StronglyTypedParser.StmtContext stmt) {
         if (stmt instanceof StronglyTypedParser.HelperFuncStmtContext) {
             return visitHelperFuncStmt((StronglyTypedParser.HelperFuncStmtContext) stmt);
+        }
+
+        if (stmt instanceof StronglyTypedParser.ReturnStmtContext) {
+            return new CReturnStatement(visitExpr(((StronglyTypedParser.ReturnStmtContext) stmt).expr()));
         }
 
         return null;

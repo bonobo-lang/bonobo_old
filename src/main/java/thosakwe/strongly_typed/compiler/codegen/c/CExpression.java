@@ -4,4 +4,6 @@ import thosakwe.strongly_typed.compiler.CodeBuilder;
 
 public abstract class CExpression {
     public abstract String compileToC(CodeBuilder builder);
+
+    public abstract Integer getSize();
 }

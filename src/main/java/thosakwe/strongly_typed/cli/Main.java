@@ -2,7 +2,6 @@ package thosakwe.strongly_typed.cli;
 
 import org.antlr.v4.runtime.misc.Pair;
 import org.apache.commons.cli.*;
-import org.apache.commons.io.FilenameUtils;
 import thosakwe.strongly_typed.Json;
 import thosakwe.strongly_typed.StronglyTyped;
 import thosakwe.strongly_typed.analysis.StaticAnalyzer;
@@ -86,7 +85,6 @@ public class Main {
                 final String output = compiler.compile(ast);
                 out.print(output.trim());
                 out.close();
-                System.out.println(output);
             } catch (CompilerError exc) {
                 compiler.getErrors().add(exc);
             }

@@ -14,7 +14,7 @@ public abstract class STDatum {
     }
 
     public boolean isPointer() {
-        return false;
+        return type.isPointerType();
     }
 
     public abstract CExpression toCExpression();

@@ -1,1 +1,5 @@
-fn main() => 32;
+fn main() {
+    // StronglyTyped is intelligent enough to automatically
+    // combine constant values like those below.
+    return 4 * 32;
+}

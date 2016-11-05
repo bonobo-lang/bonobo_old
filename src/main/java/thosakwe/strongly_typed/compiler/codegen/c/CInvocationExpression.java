@@ -40,4 +40,9 @@ public class CInvocationExpression extends CExpression {
         buf.append(")");
         return buf.toString();
     }
+
+    @Override
+    public Integer getSize() {
+        return -1;
+    }
 }
