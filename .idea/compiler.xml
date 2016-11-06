@@ -22,10 +22,12 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="true" />
+        <module name="bonobo" />
         <module name="strongly-typed" />
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
+      <module name="bonobo" target="1.8" />
       <module name="strongly-typed" target="1.8" />
     </bytecodeTargetLevel>
   </component>

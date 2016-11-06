@@ -1,6 +1,0 @@
-// The StronglyTyped compiler automatically
-// spits out code to free memory from unused symbols.
-
-fn main() {
-    return 0;
-}

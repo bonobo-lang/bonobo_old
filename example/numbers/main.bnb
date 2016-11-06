@@ -1,0 +1,13 @@
+fn main() {
+    // Bonobo is intelligent enough to automatically
+    // combine constant values like those below.
+
+    print 4 ^ 2;
+    print 7 % 3;
+    print 4 * 32;
+    print 4 / 32;
+    print 4 + 32;
+    print 4 - 32;
+
+    return 0;
+}

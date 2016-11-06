@@ -1,0 +1,12 @@
+fn main():int {
+    // Variables are immutable by default.
+    let leet = 1337;
+
+    // To declare a mutable variable, use `mut`.
+    mut myMut = 2;
+
+    // Otherwise, you cannot re-assign variables.
+    myMut = 2;
+
+    return leet + myMut;
+}
