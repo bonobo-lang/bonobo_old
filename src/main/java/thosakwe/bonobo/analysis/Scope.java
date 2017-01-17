@@ -1,291 +1,79 @@
 package thosakwe.bonobo.analysis;
 
-import org.antlr.v4.runtime.ParserRuleContext;
-import thosakwe.bonobo.compiler.codegen.c.CBlock;
-import thosakwe.bonobo.lang.STDatum;
-import thosakwe.bonobo.compiler.CompilerError;
-
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
 
 public class Scope {
-    private Scope child = null;
-    private final List<ScopeEventListener> eventListeners = new ArrayList<>();
-    private final List<Symbol> symbols = new ArrayList<>();
     private Scope parent = null;
-    private STDatum thisContext = null;
-    String sourceFile = null;
+    private final List<Symbol> symbols = new ArrayList<>();
 
-    public void addEventListener(ScopeEventListener listener) {
-        this.eventListeners.add(listener);
+    Scope() {
     }
 
-    public Scope create() {
-        final Scope innermost = getInnerMostScope();
-        final Scope child = new Scope();
-        child.parent = innermost;
-        innermost.child = child;
-
-        for (ScopeEventListener listener : eventListeners) {
-            listener.onCreate(child);
-        }
-
-        return child;
+    private Scope(Scope parent, Collection<Symbol> symbols) {
+        this();
+        this.parent = parent;
+        this.symbols.addAll(symbols);
     }
 
-    public Scope getInnerMostScope() {
-        Scope innermost = this;
-
-        while (innermost.child != null)
-            innermost = innermost.child;
-
-        return innermost;
-    }
-
-
-    public Symbol getSymbol(String name) {
-        Scope currentScope = getInnerMostScope();
-
-        // Now, backtrack to top
-        do {
-            for (Symbol symbol : currentScope.symbols) {
-                if (symbol.getName().equals(name))
-                    return symbol;
-            }
-
-            currentScope = currentScope.parent;
-        } while (currentScope != null);
-
-        return null;
-    }
-
-    public STDatum getValue(String name) {
-        final Symbol resolved = getSymbol(name);
-
-        if (resolved == null)
-            return null;
-        else return resolved.getValue();
-    }
-
-    public void destroy(boolean triggerCallbacks) {
-        final Scope innermost = getInnerMostScope();
-
-        if (innermost.parent != null) {
-            innermost.parent.child = null;
-        }
-
-        if (triggerCallbacks) {
-            for (ScopeEventListener listener : eventListeners) {
-                listener.onDestroy(innermost);
-            }
-        }
-    }
-
-    public void destroy() {
-        destroy(true);
-    }
-
-    public void dumpSymbols() {
-        int level = 1;
-        Scope currentScope = this;
-        System.out.println("DUMPING SYMBOLS:");
-
-        do {
-            if (!currentScope.symbols.isEmpty())
-                System.out.printf("Level %d (%d symbol(s)):%n", level++, currentScope.symbols.size());
-            else System.out.printf("Level %d (empty)%n", level++);
-
-            for (Symbol symbol : currentScope.symbols) {
-                System.out.printf("  - %s: ", symbol.getName());
-                System.out.println(symbol.getValue());
-            }
-
-            currentScope = currentScope.child;
-        } while (currentScope != null);
-    }
-
-    public void load(Scope other, boolean importPrivate) {
-        create();
-
-        // Go top to bottom
-        Scope currentScope = other;
-        do {
-            final Scope innermost = getInnerMostScope();
-
-            innermost.symbols
-                    .addAll(currentScope.symbols.stream()
-                            .filter(symbol -> !symbol.getName().startsWith("_") || importPrivate)
-                            .collect(Collectors.toList()));
-
-            currentScope = currentScope.child;
-
-            if (currentScope != null)
-                create();
-        } while (currentScope != null);
-    }
-
-    public void load(Scope other) {
-        load(other, false);
-    }
-
-    public void removeEventListener(ScopeEventListener listener) {
-        this.eventListeners.remove(listener);
-    }
-
-    public Symbol setFinal(String name, STDatum value, ParserRuleContext source) throws CompilerError {
-        return setValue(name, value, source, true);
-    }
-
-    public Symbol setValue(String name, STDatum value, ParserRuleContext source, boolean isFinal) throws CompilerError {
-        final Symbol resolved = getSymbol(name);
+    Symbol findOrCreate(String key) {
+        Symbol resolved = this.getSymbol(key);
 
         if (resolved == null) {
-            final Symbol symbol = new Symbol(name, value, isFinal);
-            getInnerMostScope().symbols.add(symbol);
-            return symbol;
-        } else if (!resolved.isFinal()) {
-            resolved.setValue(value);
-            return resolved;
-        } else
-            throw new CompilerError(CompilerError.ERROR, String.format("Cannot overwrite final variable '%s'.", resolved.getName()), source, getInnerMostScope().sourceFile);
-
-    }
-
-    public Symbol setValue(String name, STDatum value, ParserRuleContext source) throws CompilerError {
-        return setValue(name, value, source, false);
-    }
-
-    public List<Symbol> getSymbols() {
-        return symbols;
-    }
-
-    public Symbol resolveOrCreate(String name) {
-        final Symbol resolved = getSymbol(name);
-
-        if (resolved != null)
-            return resolved;
-        else {
-            final Symbol symbol = new Symbol(name, null);
-            getInnerMostScope().symbols.add(symbol);
-            return symbol;
-        }
-    }
-
-    public void createNew(String name, STDatum value, ParserRuleContext source, boolean isFinal) throws CompilerError {
-        final List<Symbol> symbols = getInnerMostScope().symbols;
-        Symbol predefined = null;
-
-        for (Symbol symbol : symbols) {
-            if (symbol.getName().equals(name))
-                predefined = symbol;
+            resolved = new Symbol(key);
+            symbols.add(resolved);
         }
 
-        if (predefined != null)
-            throw new CompilerError(CompilerError.ERROR, String.format("Symbol '%s' is already defined with this scope.", name), source, getInnerMostScope().sourceFile);
-        else {
-            symbols.add(new Symbol(name, value, isFinal));
-        }
+        return resolved;
     }
 
-    public void createNew(String name, STDatum value, ParserRuleContext source) throws CompilerError {
-        createNew(name, value, source, false);
+
+    Scope fork() {
+        return new Scope(this, symbols);
     }
 
-    public STDatum getThisContext() {
-        Scope currentScope = getInnerMostScope();
-
-        while (currentScope != null) {
-            if (currentScope.thisContext != null)
-                return currentScope.thisContext;
-
-            currentScope = currentScope.parent;
-        }
-
-        return null;
+    Scope join() {
+        if (parent == null)
+            throw new NullPointerException("The root scope does not have a parent.");
+        return parent;
     }
 
-    public void setThisContext(STDatum thisContext) {
-        this.thisContext = thisContext;
-    }
+    List<Symbol> getExports(boolean importPrivate) {
+        List<Symbol> exports = new ArrayList<>();
+        List<String> names = new ArrayList<>();
+        Scope scope = this;
 
-    public List<Symbol> allUnique(boolean importPrivate) {
-        final List<Symbol> result = new ArrayList<>();
-        final List<String> added = new ArrayList<>();
-        Scope currentScope = getInnerMostScope();
-
-        while (currentScope != null) {
-            for (Symbol symbol : currentScope.symbols) {
-                if (!added.contains(symbol.getName())) {
-                    if (!symbol.getName().startsWith("_") || importPrivate) {
-                        added.add(symbol.getName());
-                        result.add(symbol);
-                    }
+        while (scope != null) {
+            for (Symbol symbol : scope.symbols) {
+                if ((importPrivate || symbol.getName().indexOf('_') != 0)
+                        && !names.contains(symbol.getName())) {
+                    exports.add(symbol);
+                    names.add(symbol.getName());
                 }
             }
 
-            currentScope = currentScope.parent;
+            scope = scope.parent;
         }
 
-        return result;
+        return exports;
     }
 
-    public List<Symbol> allUnique() {
-        return allUnique(false);
-    }
-/*
-    public void load(FrayLibrary from, boolean importPrivate) {
-        getInnerMostScope().symbols.addAll((importPrivate ? from.getExportedSymbols() : from.getPublicSymbols()));
+    Scope getRoot() {
+        Scope root = this;
+
+        while (root.parent != null)
+            root = root.parent;
+
+        return root;
     }
 
-    public void load(FrayLibrary from) {
-        load(from, false);
-    }
-    */
-
-    public Symbol put(String name, STDatum value, boolean isFinal) {
-        final Symbol result = new Symbol(name, value, isFinal);
-        getInnerMostScope().symbols.add(result);
-        return result;
-    }
-
-    public Symbol put(String name, STDatum value) {
-        return put(name, value, false);
-    }
-
-    public Symbol putFinal(String name, STDatum value) {
-        return put(name, value, true);
-    }
-
-    public boolean contains(String name) {
+    Symbol getSymbol(String key) {
         for (Symbol symbol : symbols) {
-            if (symbol.getName().equals(name))
-                return true;
+            if (symbol.getName().equals(key))
+                return symbol;
         }
 
-        if (child != null)
-            return child.contains(name);
-
-        return false;
-    }
-
-    /**
-     * Variation on `destroy`. Calls `onRelease` listeners.
-     *
-     * @param targetBlock The block context to write release handlers into.
-     */
-    public void release(CBlock targetBlock) {
-        final Scope innermost = getInnerMostScope();
-        destroy(false);
-
-        for (ScopeEventListener listener : eventListeners) {
-            listener.onRelease(innermost, targetBlock);
-        }
-    }
-
-    public void mockRelease(CBlock targetBlock) {
-        for (ScopeEventListener listener : eventListeners) {
-            listener.onRelease(getInnerMostScope(), targetBlock);
-        }
+        return parent != null ? parent.getSymbol(key) : null;
     }
 }

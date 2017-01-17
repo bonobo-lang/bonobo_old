@@ -1,4 +1,4 @@
-package thosakwe.bonobo.compiler;
+package thosakwe.bonobo.analysis;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.misc.Pair;

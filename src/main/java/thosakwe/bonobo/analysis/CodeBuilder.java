@@ -1,4 +1,4 @@
-package thosakwe.bonobo.compiler;
+package thosakwe.bonobo.analysis;
 
 import java.io.StringWriter;
 

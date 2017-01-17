@@ -6,7 +6,7 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.misc.Pair;
 import thosakwe.bonobo.grammar.BonoboLexer;
 import thosakwe.bonobo.grammar.BonoboParser;
-import thosakwe.bonobo.compiler.SyntaxErrorListener;
+import thosakwe.bonobo.analysis.SyntaxErrorListener;
 
 import java.io.IOException;
 

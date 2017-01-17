@@ -1,7 +1,8 @@
-package thosakwe.bonobo.compiler;
+package thosakwe.bonobo.analysis;
 
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.misc.Pair;
+import thosakwe.bonobo.analysis.CompilerError;
 
 import java.util.ArrayList;
 import java.util.List;

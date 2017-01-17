@@ -5,10 +5,9 @@ import org.apache.commons.cli.*;
 import thosakwe.bonobo.Json;
 import thosakwe.bonobo.Bonobo;
 import thosakwe.bonobo.analysis.StaticAnalyzer;
-import thosakwe.bonobo.compiler.CCompiler;
 import thosakwe.bonobo.grammar.BonoboParser;
-import thosakwe.bonobo.compiler.SyntaxErrorListener;
-import thosakwe.bonobo.compiler.CompilerError;
+import thosakwe.bonobo.analysis.SyntaxErrorListener;
+import thosakwe.bonobo.analysis.CompilerError;
 
 import java.io.File;
 import java.io.PrintStream;
@@ -63,6 +62,15 @@ public class Main {
                 System.out.printf("%s: %s (%s:%d:%d)%n", warning.getType(), warning.getMessage(), filename, warning.getLine(), warning.getColumn());
             }
 
+            if (!analyzer.getErrors().isEmpty()) {
+                for (CompilerError error : analyzer.getErrors()) {
+                    System.out.printf("%s: %s (%s:%d:%d)%n", error.getType(), error.getMessage(), filename, error.getLine(), error.getColumn());
+                }
+
+                System.exit(1);
+                return;
+            }
+
             String outputFilename;
 
             if (commandLine.hasOption("out"))
@@ -79,23 +87,7 @@ public class Main {
             }
 
             final PrintStream out = commandLine.hasOption("write-stdout") ? System.out : new PrintStream(outputFilename);
-            final CCompiler compiler = new CCompiler(filename, commandLine.hasOption("verbose"));
-
-            try {
-                final String output = compiler.compile(ast);
-                out.print(output.trim());
-                out.close();
-            } catch (CompilerError exc) {
-                compiler.getErrors().add(exc);
-            }
-
-            if (!compiler.getErrors().isEmpty()) {
-                for (CompilerError error : compiler.getErrors()) {
-                    System.err.printf("%s: %s (%s:%d:%d)%n", error.getType(), error.getMessage(), filename, error.getLine(), error.getColumn());
-                }
-
-                System.exit(1);
-            }
+            out.println("TODO: Compilation");
         } catch (ParseException exc) {
             printUsage();
             System.exit(1);

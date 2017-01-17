@@ -1,7 +1,5 @@
 package thosakwe.bonobo.analysis;
 
-import thosakwe.bonobo.lang.STDatum;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -9,17 +7,14 @@ public class Symbol {
     private boolean _isFinal = false;
     private final String name;
     private final List<SymbolUsage> usages = new ArrayList<>();
-    private STDatum value;
 
-    public Symbol(String name, STDatum value, boolean isFinal) {
+    public Symbol(String name, boolean isFinal) {
         this._isFinal = isFinal;
         this.name = name;
-        this.value = value;
     }
 
-    public Symbol(String name, STDatum value) {
-        this.name = name;
-        this.value = value;
+    public Symbol(String name) {
+        this(name, false);
     }
 
     public String getName() {
@@ -28,10 +23,6 @@ public class Symbol {
 
     public List<SymbolUsage> getUsages() {
         return usages;
-    }
-
-    public STDatum getValue() {
-        return value;
     }
 
     public void markAsFinal() {
@@ -43,11 +34,7 @@ public class Symbol {
     }
 
     public String safeDelete(String src) {
-        // Todo: Safe delete
-        return src;
-    }
-
-    public void setValue(STDatum value) {
-        this.value = value;
+        // Todo: safe delete
+        throw new UnsupportedOperationException("safeDelete is not yet implemented.");
     }
 }

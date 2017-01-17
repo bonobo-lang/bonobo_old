@@ -1,0 +1,10 @@
+// Functions can be passed as params, only if you provide them as a function signature
+fn mvt(fn f(x), a, b) => (f(b) - f(a)) / (b - a);
+
+fn entry() {
+    let myFunc(x) = x^2 + 2x - 4;
+    let curriedMvt = mvt(myFunc); // curriedMvt(a, b)
+    let lower = 0, upper = 4;
+    let mean = curriedMean(lower, upper);
+    printf 'Mean value: %d\n', mean;
+}
