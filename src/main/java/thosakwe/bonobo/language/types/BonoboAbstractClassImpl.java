@@ -7,6 +7,8 @@ import thosakwe.bonobo.language.BonoboType;
 import java.util.Collection;
 
 public class BonoboAbstractClassImpl extends BonoboType {
+    public static final BonoboAbstractClassImpl TYPEOF = new BonoboAbstractClassImpl("Type");
+
     private final String name;
 
     public BonoboAbstractClassImpl(String name) {
@@ -24,12 +26,12 @@ public class BonoboAbstractClassImpl extends BonoboType {
 
     @Override
     public BonoboType typeForConstruct(Collection<BonoboType> arguments, ParserRuleContext source) throws BonoboException {
-        return null;
+        throw BonoboException.cannotInstantiateAbstractType(name, source);
     }
 
     @Override
     public BonoboType typeForInvoke(Collection<BonoboType> arguments, ParserRuleContext source) throws BonoboException {
-        return null;
+        throw BonoboException.notAFunction(BonoboAbstractClassImpl.TYPEOF, source);
     }
 
     @Override

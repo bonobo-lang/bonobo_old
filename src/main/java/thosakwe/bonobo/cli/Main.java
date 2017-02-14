@@ -2,10 +2,17 @@ package thosakwe.bonobo.cli;
 
 import org.apache.commons.cli.*;
 import thosakwe.bonobo.Bonobo;
+import thosakwe.bonobo.analysis.ErrorChecker;
+import thosakwe.bonobo.analysis.StaticAnalyzer;
+import thosakwe.bonobo.compiler.BonoboCompiler;
+import thosakwe.bonobo.compiler.BonoboToJvmCompiler;
 import thosakwe.bonobo.grammar.BonoboParser;
+import thosakwe.bonobo.language.BonoboException;
+import thosakwe.bonobo.language.BonoboLibrary;
 
 import java.io.File;
 import java.io.PrintStream;
+import java.util.List;
 
 public class Main {
     public static void main(String[] args) {
@@ -52,7 +59,35 @@ public class Main {
             }
 
             PrintStream out = commandLine.hasOption("write-stdout") ? System.out : new PrintStream(outputFilename);
-            out.println("TODO: Compilation");
+            BonoboCompiler compiler = new BonoboToJvmCompiler(commandLine.hasOption("verbose"));
+
+            // Analyze and check for errors
+            try {
+                StaticAnalyzer analyzer = new StaticAnalyzer(compiler.isDebug());
+                BonoboLibrary library = analyzer.analyzeCompilationUnit(ast);
+                ErrorChecker errorChecker = new ErrorChecker(analyzer);
+                List<BonoboException> errors = errorChecker.visitLibrary(library);
+
+                if (!errors.isEmpty()) {
+                    System.err.printf("%d compiler error(s):%n%n", errors.size());
+
+                    for (BonoboException error : errors) {
+                        System.err.printf(String.format(
+                                "line %d, column %d: %s%n",
+                                error.getSource().start.getLine(),
+                                error.getSource().start.getCharPositionInLine(),
+                                error.getMessage()
+                        ));
+                    }
+                } else {
+                    compiler.compile(library, out);
+                }
+
+            } catch (BonoboException exc) {
+                System.err.println("Static analysis error: " + exc.getMessage());
+                System.exit(1);
+            }
+
         } catch (ParseException exc) {
             printUsage();
             System.exit(1);
@@ -69,6 +104,7 @@ public class Main {
                 .addOption(Option.builder().longOpt("analyze").desc("Statically analyzes the source, and prints JSON as output.").build())
                 .addOption("debug", "verbose", false, "Enable verbose debug output.")
                 .addOption("h", "help", false, "print this help information.")
+                .addOption("o", "out", true, "The output file to be generated.")
                 .addOption("p", "port", true, "Specify a port for the analysis server. Default: 2359")
                 .addOption("stdout", "write-stdout", false, "Prints the resulting JVM bytecode to stdout.")
                 .addOption("v", "version", false, "Prints the program version.");

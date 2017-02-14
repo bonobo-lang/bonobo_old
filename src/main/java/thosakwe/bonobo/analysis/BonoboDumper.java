@@ -1,5 +1,6 @@
 package thosakwe.bonobo.analysis;
 
+import org.apache.commons.cli.*;
 import thosakwe.bonobo.Bonobo;
 import thosakwe.bonobo.grammar.BonoboParser;
 import thosakwe.bonobo.language.BonoboException;
@@ -15,7 +16,21 @@ import java.util.Map;
 
 public class BonoboDumper {
     public static void main(String[] args) throws IOException, BonoboException {
-        if (args.length < 1) {
+        Options cliOptions = dumpOptions();
+        CommandLine commandLine = null;
+
+        try {
+            commandLine = new DefaultParser().parse(cliOptions, args);
+        } catch (ParseException e) {
+            new HelpFormatter().printHelp("dumper [options...] <filename>", cliOptions);
+            System.err.println("fatal error: no input file");
+            System.exit(1);
+            return;
+        }
+
+        String[] rest = commandLine.getArgs();
+
+        if (rest.length < 1) {
             System.err.println("fatal error: no input file");
             System.exit(1);
             return;
@@ -23,7 +38,7 @@ public class BonoboDumper {
 
         BonoboParser parser = Bonobo.parseFile(args[0]);
         BonoboParser.CompilationUnitContext ast = parser.compilationUnit();
-        StaticAnalyzer analyzer = new StaticAnalyzer();
+        StaticAnalyzer analyzer = new StaticAnalyzer(commandLine.hasOption("verbose"));
         BonoboLibrary library = analyzer.analyzeCompilationUnit(ast);
         dump(library);
         ErrorChecker checker = new ErrorChecker(analyzer);
@@ -41,9 +56,15 @@ public class BonoboDumper {
                         error.getSource().start.getCharPositionInLine(),
                         error.getMessage()
                 ));
-                // error.printStackTrace();
             }
+
+            System.exit(1);
         }
+    }
+
+    private static Options dumpOptions() {
+        return new Options()
+                .addOption("d", "verbose", false, "Print verbose debug output.");
     }
 
     private static void dump(BonoboLibrary library) {

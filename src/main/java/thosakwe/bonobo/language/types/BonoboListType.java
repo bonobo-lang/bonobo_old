@@ -70,4 +70,7 @@ public class BonoboListType extends BonoboType {
         return super.isAssignableTo(otherType);
     }
 
+    public BonoboType getReferenceType() {
+        return referenceType;
+    }
 }

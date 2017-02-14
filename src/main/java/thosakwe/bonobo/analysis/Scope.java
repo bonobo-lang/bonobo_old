@@ -7,13 +7,21 @@ import java.util.Collection;
 import java.util.List;
 
 public class Scope {
+    private boolean debug = false;
     private Scope parent = null;
     private final List<Symbol> symbols = new ArrayList<>();
 
-    public Scope() {}
+    public Scope() {
+        this(false);
+    }
+
+    public Scope(boolean debug) {
+        this.debug = debug;
+    }
 
     private Scope(Scope parent, Collection<Symbol> symbols) {
         this();
+        this.debug = parent.debug;
         this.parent = parent;
         this.symbols.addAll(symbols);
     }
@@ -90,6 +98,11 @@ public class Scope {
     public Symbol put(String name, BonoboObject value, boolean isFinal) {
         // TODO: Check if already exists
         Symbol symbol = new Symbol(name, value, isFinal);
+
+        if (debug) {
+            System.out.printf("Setting %s symbol %s to %s%n", isFinal ? "constant" : "mutable", name, value.getType().getName());
+        }
+
         symbols.add(symbol);
         return symbol;
     }

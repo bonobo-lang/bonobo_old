@@ -14,6 +14,10 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class StaticAnalyzer extends BaseStaticAnalyzer {
+    public StaticAnalyzer(boolean debug) {
+        super(debug);
+    }
+
     public BonoboLibrary analyzeCompilationUnit(BonoboParser.CompilationUnitContext ctx) throws BonoboException {
         BonoboLibrary library = new BonoboLibrary(ctx);
 

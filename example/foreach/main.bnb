@@ -1,0 +1,22 @@
+// Bonobo also supports foreach loops as a syntactic sugar.
+
+fn loopIt() {
+    let luckyNumbers = (1, 2, 7, 9, 13);
+
+    for (luckyNumber: luckyNumbers) {
+        // The type of `luckyNumber` will be automatically deduced.
+        // Woohoo for strong typing!
+        let plusTwo = luckyNumber + 2;
+
+        // However, you can only iterate over lists.
+        // The following throws a compile-time error:
+        for (imaginary: luckyNumber) {
+            // Not allowed...
+        }
+
+        // This is perfectly fine, and type-safe:
+        for (number: (luckyNumber, 2, 3.0)) {
+            print number;
+        }
+    }
+}

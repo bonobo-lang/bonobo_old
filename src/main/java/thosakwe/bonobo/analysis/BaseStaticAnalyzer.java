@@ -1,7 +1,11 @@
 package thosakwe.bonobo.analysis;
 
 class BaseStaticAnalyzer {
-    private Scope scope = new Scope();
+    private Scope scope;
+
+    BaseStaticAnalyzer(boolean debug) {
+        this.scope = new Scope(debug);
+    }
 
     public Scope getScope() {
         return scope;

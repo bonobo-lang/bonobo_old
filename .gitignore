@@ -93,6 +93,4 @@ crashlytics.properties
 crashlytics-build.properties
 fabric.properties
 
-example/**/*.c
-example/**/*.o
-example/**/*.out
+*.class

@@ -2,6 +2,7 @@ package thosakwe.bonobo.language;
 
 
 import org.antlr.v4.runtime.ParserRuleContext;
+import thosakwe.bonobo.language.types.BonoboAbstractClassImpl;
 import thosakwe.bonobo.language.types.BonoboUnknownType;
 
 import java.util.ArrayList;
@@ -9,6 +10,7 @@ import java.util.Collection;
 import java.util.List;
 
 public abstract class BonoboType {
+
     private final List<BonoboClassMember> members = new ArrayList<>();
     private BonoboType parentType = null;
 

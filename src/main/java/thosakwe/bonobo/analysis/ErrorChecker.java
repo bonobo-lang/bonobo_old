@@ -10,7 +10,9 @@ import thosakwe.bonobo.language.BonoboType;
 import thosakwe.bonobo.language.objects.BonoboFunction;
 import thosakwe.bonobo.language.objects.BonoboFunctionParameter;
 import thosakwe.bonobo.language.objects.BonoboObjectImpl;
+import thosakwe.bonobo.language.types.BonoboListType;
 import thosakwe.bonobo.language.types.BonoboUnknownType;
+import thosakwe.bonobo.language.types.BonoboVoidType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -61,7 +63,7 @@ public class ErrorChecker {
         BonoboParser.FuncBodyContext bodyContext = source.funcBody();
 
         if (bodyContext instanceof BonoboParser.StmtBodyContext) {
-            Pair<BonoboType, List<BonoboException>> stmtResult = visitStatement(((BonoboParser.StmtBodyContext) bodyContext).stmt());
+            Pair<BonoboType, List<BonoboException>> stmtResult = visitStatement(((BonoboParser.StmtBodyContext) bodyContext).stmt(), function);
             result.addAll(stmtResult.b);
             BonoboType actuallyReturned = stmtResult.a;
 
@@ -85,7 +87,7 @@ public class ErrorChecker {
         List<BonoboException> result = new ArrayList<>();
 
         for (BonoboParser.StmtContext stmtContext : block.stmt()) {
-            Pair<BonoboType, List<BonoboException>> stmtResult = visitStatement(stmtContext);
+            Pair<BonoboType, List<BonoboException>> stmtResult = visitStatement(stmtContext, function);
             result.addAll(stmtResult.b);
 
             if (stmtContext instanceof BonoboParser.ReturnStmtContext) {
@@ -100,10 +102,35 @@ public class ErrorChecker {
         return result;
     }
 
-    private Pair<BonoboType, List<BonoboException>> visitStatement(BonoboParser.StmtContext ctx) throws BonoboException {
+    private Pair<BonoboType, List<BonoboException>> visitStatement(BonoboParser.StmtContext ctx, BonoboFunction function) throws BonoboException {
         List<BonoboException> errors = new ArrayList<>();
 
         try {
+            if (ctx instanceof BonoboParser.ForEachStmtContext) {
+                String name = ((BonoboParser.ForEachStmtContext) ctx).name.getText();
+                BonoboObject iterable = analyzer.analyzeExpression(((BonoboParser.ForEachStmtContext) ctx).expr());
+                analyzer.pushScope();
+
+                if (!iterable.getType().isAssignableTo(BonoboListType.TYPEOF)) {
+                    errors.add(new BonoboException(
+                            String.format("Type \"%s\" is not iterable.", iterable.getType().getName()),
+                            ((BonoboParser.ForEachStmtContext) ctx).expr()));
+                    analyzer.getScope().putFinal(name, new BonoboObjectImpl(BonoboUnknownType.INSTANCE, ((BonoboParser.ForEachStmtContext) ctx).expr()));
+                } else {
+                    BonoboListType listType = (BonoboListType) iterable.getType();
+                    analyzer.getScope().putFinal(name, new BonoboObjectImpl(listType.getReferenceType(), ((BonoboParser.ForEachStmtContext) ctx).expr()));
+                }
+
+                // Visit the block
+                errors.addAll(visitBlock(((BonoboParser.ForEachStmtContext) ctx).block(), function));
+
+                analyzer.popScope();
+            }
+
+            if (ctx instanceof BonoboParser.HelperFuncStmtContext) {
+                return new Pair<>(BonoboVoidType.INSTANCE, errors);
+            }
+
             if (ctx instanceof BonoboParser.VarDeclStmtContext) {
                 boolean isFinal = ((BonoboParser.VarDeclStmtContext) ctx).specifier.getText().equals("let");
 

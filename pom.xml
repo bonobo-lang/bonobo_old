@@ -41,11 +41,11 @@
             <artifactId>asm</artifactId>
             <version>3.3.1</version>
         </dependency>
-        <!--<dependency>
+        <dependency>
             <groupId>org.eclipse.lsp4j</groupId>
-            <artifactId>lsp4j</artifactId>
-            <version>0.2.0</version>
-        </dependency>-->
+            <artifactId>org.eclipse.lsp4j</artifactId>
+            <version>0.1.1</version>
+        </dependency>
     </dependencies>
 
     <build>
