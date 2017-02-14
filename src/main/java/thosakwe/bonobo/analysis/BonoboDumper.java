@@ -8,10 +8,9 @@ import thosakwe.bonobo.language.BonoboObject;
 import thosakwe.bonobo.language.BonoboType;
 import thosakwe.bonobo.language.objects.BonoboFunction;
 import thosakwe.bonobo.language.objects.BonoboFunctionParameter;
-import thosakwe.bonobo.language.types.BonoboIntegerType;
-import thosakwe.bonobo.language.types.BonoboListType;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.Map;
 
 public class BonoboDumper {
@@ -24,8 +23,27 @@ public class BonoboDumper {
 
         BonoboParser parser = Bonobo.parseFile(args[0]);
         BonoboParser.CompilationUnitContext ast = parser.compilationUnit();
-        BonoboLibrary library = new StaticAnalyzer().analyzeCompilationUnit(ast);
+        StaticAnalyzer analyzer = new StaticAnalyzer();
+        BonoboLibrary library = analyzer.analyzeCompilationUnit(ast);
         dump(library);
+        ErrorChecker checker = new ErrorChecker(analyzer);
+        List<BonoboException> errors = checker.visitLibrary(library);
+
+        if (errors.isEmpty())
+            System.out.println("Library contains 0 errors. Nice coding!");
+        else {
+            System.err.printf("Library contains %d error(s):%n%n", errors.size());
+
+            for (BonoboException error : errors) {
+                System.err.printf(String.format(
+                        "line %d, column %d: %s%n",
+                        error.getSource().start.getLine(),
+                        error.getSource().start.getCharPositionInLine(),
+                        error.getMessage()
+                ));
+                // error.printStackTrace();
+            }
+        }
     }
 
     private static void dump(BonoboLibrary library) {

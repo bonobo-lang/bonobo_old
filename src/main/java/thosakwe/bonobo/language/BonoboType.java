@@ -2,6 +2,7 @@ package thosakwe.bonobo.language;
 
 
 import org.antlr.v4.runtime.ParserRuleContext;
+import thosakwe.bonobo.language.types.BonoboUnknownType;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -28,7 +29,7 @@ public abstract class BonoboType {
     }
 
     public boolean isAssignableTo(BonoboType otherType) {
-        if (otherType == this) return true;
+        if (otherType == this || otherType == BonoboUnknownType.INSTANCE) return true;
 
         BonoboType search = this;
 

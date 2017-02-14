@@ -2,6 +2,7 @@ package thosakwe.bonobo.language;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import thosakwe.bonobo.Bonobo;
+import thosakwe.bonobo.grammar.BonoboParser;
 import thosakwe.bonobo.language.objects.BonoboFunction;
 import thosakwe.bonobo.language.types.BonoboDoubleType;
 import thosakwe.bonobo.language.types.BonoboListType;
@@ -45,5 +46,19 @@ public class BonoboException extends Exception {
                         type.getName(),
                         otherType.getName()),
                 source);
+    }
+
+    public static BonoboException invalidReturnForFunction(BonoboFunction function, BonoboType actuallyReturned, ParserRuleContext source) {
+        return new BonoboException(
+                String.format(
+                        "Function \"%s\" is declared to return type \"%s\", but actually returns type \"%s\".",
+                        function.getName(),
+                        function.getReturnType().getName(),
+                        actuallyReturned.getName()),
+                source);
+    }
+
+    public static BonoboException unresolvedIdentifier(String name, ParserRuleContext source) {
+        return new BonoboException(String.format("The name \"%s\" does not exist in the current context.", name), source);
     }
 }

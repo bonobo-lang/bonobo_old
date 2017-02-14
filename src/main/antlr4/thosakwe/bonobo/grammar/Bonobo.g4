@@ -7,7 +7,10 @@ BRACKETS: '[]';
 
 INT: '-'? [0-9]+;
 DBL: '-'? [0-9]+ '.' [0-9]+;
-STRING: '\'' ('\\\'' | ~('\n' | '\''))* '\'';
+STRING:
+    ('\'' ('\\\'' | ~('\n' | '\''))* '\'')
+    | ('"' ('\\"' | ~('\n' | '"'))* '"')
+;
 ID: [a-z] [A-Za-z0-9_]*;
 
 compilationUnit: ('import' importSource)* topLevelDef*;
@@ -25,17 +28,14 @@ topLevelDef:
 funcSignature: name=ID '(' ((params+=paramSpec ',')* params+=paramSpec)? ')' (':' returnType=type)?;
 
 type:
-    'int' #IntType
-    | 'double' #DoubleType
-    | 'num' #NumberType
-    | ID #VariableType
+    ID #NamedType
+    | library=ID '.' name=ID #ImportedType
     | type BRACKETS #ListType
 ;
 
 funcBody:
     block #BlockBody
     | '=>' stmt ';'* #StmtBody
-    | '=>' expr ';'* #ExprBody
 ;
 
 paramSpec:
@@ -48,10 +48,10 @@ expr:
     ID #IdentifierExpr
     | INT #IntegerLiteralExpr
     | DBL #DoubleLiteralExpr
-    | STRING #StringExpr
+    | STRING #StringLiteralExpr
     | '(' lower=expr '.' '.' exclusive='.'? upper=expr ')' #RangeLiteralExpr
     | '(' (expr ',')+ expr ')' #ListLiteralExpr
-    | callee=ID '(' ((args+=expr ',')* args+=expr)? ')' #InvocationExpr
+    | callee=expr '(' ((args+=expr ',')* args+=expr)? ')' #InvocationExpr
     | left=expr right=expr #AdjacentExprs
     | left=expr assignmentOp right=expr #AssignmentExpr
     | left=expr '^' right=expr #PowerExpr
@@ -82,7 +82,7 @@ stmt:
     | 'while' '(' cond=expr ')' block #WhileStmt
     | specifier=('let'|'mut') (variableDeclaration ',')* variableDeclaration #VarDeclStmt
     | 'let' funcSignature '=' expr #InlineFuncDeclStmt
-    | 'return' expr #ReturnStmt
+    | 'return'? expr #ReturnStmt
 ;
 
 ifBlock: 'if' '(' cond=expr ')' block;

@@ -94,14 +94,22 @@ public class StaticAnalyzer extends BaseStaticAnalyzer {
     }
 
     public BonoboType analyzeType(BonoboParser.TypeContext ctx) throws BonoboException {
-        if (ctx instanceof BonoboParser.IntTypeContext) {
-            return BonoboIntegerType.INSTANCE;
-        } else if (ctx instanceof BonoboParser.DoubleTypeContext) {
-            return BonoboDoubleType.INSTANCE;
-        } else if (ctx instanceof BonoboParser.NumberTypeContext) {
-            return BonoboNumberType.INSTANCE;
-        } else if (ctx instanceof BonoboParser.VariableTypeContext) {
-            // TODO: Resolve variable types
+        if (ctx instanceof BonoboParser.NamedTypeContext) {
+            String name = ((BonoboParser.NamedTypeContext) ctx).ID().getText();
+
+            switch (name) {
+                case "num":
+                    return BonoboNumberType.INSTANCE;
+                case "int":
+                    return BonoboIntegerType.INSTANCE;
+                case "double":
+                    return BonoboDoubleType.INSTANCE;
+                case "string":
+                    return BonoboStringType.INSTANCE;
+                default:
+                    // TODO: Resolve variable types
+                    return BonoboUnknownType.INSTANCE;
+            }
         } else if (ctx instanceof BonoboParser.ListTypeContext) {
             return new BonoboListType(analyzeType(((BonoboParser.ListTypeContext) ctx).type()));
         }
@@ -110,12 +118,25 @@ public class StaticAnalyzer extends BaseStaticAnalyzer {
     }
 
     public BonoboObject analyzeExpression(BonoboParser.ExprContext ctx) throws BonoboException {
+        if (ctx instanceof BonoboParser.IdentifierExprContext) {
+            String name = ((BonoboParser.IdentifierExprContext) ctx).ID().getText();
+            Symbol resolved = getScope().getSymbol(name);
+
+            if (resolved == null || resolved.getValue() == null)
+                throw BonoboException.unresolvedIdentifier(name, ctx);
+            return resolved.getValue();
+        }
+
         if (ctx instanceof BonoboParser.IntegerLiteralExprContext) {
             return new BonoboObjectImpl(BonoboIntegerType.INSTANCE, ctx);
         }
 
         if (ctx instanceof BonoboParser.DoubleLiteralExprContext) {
             return new BonoboObjectImpl(BonoboDoubleType.INSTANCE, ctx);
+        }
+
+        if (ctx instanceof BonoboParser.StringLiteralExprContext) {
+            return new BonoboObjectImpl(BonoboStringType.INSTANCE, ctx);
         }
 
         if (ctx instanceof BonoboParser.ListLiteralExprContext) {
@@ -140,6 +161,10 @@ public class StaticAnalyzer extends BaseStaticAnalyzer {
             }
 
             return new BonoboObjectImpl(new BonoboListType(commonParentType), ctx);
+        }
+
+        if (ctx instanceof BonoboParser.ParenthesizedExprContext) {
+            return analyzeExpression(((BonoboParser.ParenthesizedExprContext) ctx).expr());
         }
 
         // TODO: All expressions

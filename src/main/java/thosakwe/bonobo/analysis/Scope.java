@@ -1,5 +1,7 @@
 package thosakwe.bonobo.analysis;
 
+import thosakwe.bonobo.language.BonoboObject;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -74,5 +76,21 @@ public class Scope {
         }
 
         return parent != null ? parent.getSymbol(key) : null;
+    }
+
+    public Symbol putFinal(String name, BonoboObject value) {
+        return put(name, value, true);
+    }
+
+    private Symbol put(String name, BonoboObject value) {
+        return put(name, value, false);
+    }
+
+
+    private Symbol put(String name, BonoboObject value, boolean isFinal) {
+        // TODO: Check if already exists
+        Symbol symbol = new Symbol(name, value, isFinal);
+        symbols.add(symbol);
+        return symbol;
     }
 }
