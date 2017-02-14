@@ -27,7 +27,7 @@ public class BonoboToJvmCompiler extends BonoboCompiler {
     @Override
     public void compile(BonoboLibrary library, OutputStream outputStream) throws IOException {
         ClassWriter clazz = new ClassWriter(0);
-        clazz.visit(Opcodes.V1_1, Opcodes.ACC_PUBLIC, "Main", null, "java/lang/Object", null);
+        clazz.visit(Opcodes.V1_1, Opcodes.ACC_PUBLIC, "CompilerFrontend", null, "java/lang/Object", null);
 
         // Implicit constructor
         MethodVisitor constructor = clazz.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);

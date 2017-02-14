@@ -1,32 +1,42 @@
 package thosakwe.bonobo.analysis;
 
-import org.eclipse.lsp4j.InitializeParams;
-import org.eclipse.lsp4j.InitializeResult;
-import org.eclipse.lsp4j.services.LanguageServer;
-import org.eclipse.lsp4j.services.TextDocumentService;
-import org.eclipse.lsp4j.services.WorkspaceService;
+import org.eclipse.lsp4j.*;
+import org.eclipse.lsp4j.services.*;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * Created on 2/14/2017.
  */
-public class BonoboLanguageServer implements LanguageServer {
+public class BonoboLanguageServer implements LanguageServer, LanguageClientAware {
+    private final BonoboLanguageServerContext context = new BonoboLanguageServerContext();
     private final TextDocumentService textDocumentService;
-    private final WorkspaceService workspaceService = new BonoboWorkspaceService();
+    private final WorkspaceService workspaceService;
 
-    BonoboLanguageServer(boolean debug) {
-        this.textDocumentService = new BonoboTextDocumentService(debug);
+    public BonoboLanguageServer(boolean debug) {
+        this.textDocumentService = new BonoboTextDocumentService(debug, context);
+        this.workspaceService = new BonoboWorkspaceService(debug, context);
+    }
+
+    @Override
+    public void connect(LanguageClient languageClient) {
+        context.setLanguageClient(languageClient);
     }
 
     @Override
     public CompletableFuture<InitializeResult> initialize(InitializeParams initializeParams) {
-        return null;
+        InitializeResult result = new InitializeResult();
+        result.setCapabilities(new ServerCapabilities());
+        result.getCapabilities().setCompletionProvider(new CompletionOptions(true, new ArrayList<String>()));
+        result.getCapabilities().setTextDocumentSync(TextDocumentSyncKind.Full);
+        return CompletableFuture.completedFuture(result);
     }
 
     @Override
     public CompletableFuture<Object> shutdown() {
-        return null;
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override

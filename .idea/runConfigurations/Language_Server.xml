@@ -1,10 +1,10 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="implicit_gc" type="Application" factoryName="Application" folderName="Examples" singleton="true">
+  <configuration default="false" name="Language Server" type="Application" factoryName="Application" singleton="true">
     <extension name="coverage" enabled="false" merge="false" sample_coverage="true" runner="idea" />
     <option name="MAIN_CLASS_NAME" value="thosakwe.bonobo.tool.CompilerFrontend" />
     <option name="VM_PARAMETERS" value="" />
-    <option name="PROGRAM_PARAMETERS" value="main.str --verbose" />
-    <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$/example/implicit_gc" />
+    <option name="PROGRAM_PARAMETERS" value="--analyze" />
+    <option name="WORKING_DIRECTORY" value="file://$PROJECT_DIR$" />
     <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="false" />
     <option name="ALTERNATIVE_JRE_PATH" />
     <option name="ENABLE_SWING_INSPECTOR" value="false" />

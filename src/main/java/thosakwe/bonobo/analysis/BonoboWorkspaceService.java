@@ -13,6 +13,14 @@ import java.util.concurrent.CompletableFuture;
  * Created on 2/14/2017.
  */
 public class BonoboWorkspaceService implements WorkspaceService {
+    private final boolean debug;
+    private final BonoboLanguageServerContext serverContext;
+
+    public BonoboWorkspaceService(boolean debug, BonoboLanguageServerContext context) {
+        this.debug = debug;
+        this.serverContext = context;
+    }
+
     @Override
     public CompletableFuture<List<? extends SymbolInformation>> symbol(WorkspaceSymbolParams workspaceSymbolParams) {
         return null;

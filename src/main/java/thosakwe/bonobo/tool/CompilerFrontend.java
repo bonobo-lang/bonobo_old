@@ -1,7 +1,11 @@
-package thosakwe.bonobo.cli;
+package thosakwe.bonobo.tool;
 
 import org.apache.commons.cli.*;
+import org.eclipse.lsp4j.jsonrpc.Launcher;
+import org.eclipse.lsp4j.launch.LSPLauncher;
+import org.eclipse.lsp4j.services.LanguageClient;
 import thosakwe.bonobo.Bonobo;
+import thosakwe.bonobo.analysis.BonoboLanguageServer;
 import thosakwe.bonobo.analysis.ErrorChecker;
 import thosakwe.bonobo.analysis.StaticAnalyzer;
 import thosakwe.bonobo.compiler.BonoboCompiler;
@@ -10,11 +14,12 @@ import thosakwe.bonobo.grammar.BonoboParser;
 import thosakwe.bonobo.language.BonoboException;
 import thosakwe.bonobo.language.BonoboLibrary;
 
-import java.io.File;
-import java.io.PrintStream;
+import java.io.*;
+import java.net.*;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
 
-public class Main {
+public class CompilerFrontend {
     public static void main(String[] args) {
         try {
             Options cliOptions = makeCliOptions();
@@ -30,7 +35,8 @@ public class Main {
                 return;
             }
 
-            if (commandLine.hasOption("analysis-server")) {
+            if (commandLine.hasOption("analyze")) {
+                languageServerMain(commandLine);
                 return;
             }
 
@@ -98,10 +104,45 @@ public class Main {
         }
     }
 
+
+    private static void languageServerMain(CommandLine commandLine) throws IOException {
+        if (commandLine.hasOption("write-stdout")) {
+            try {
+                BonoboLanguageServer server = new BonoboLanguageServer(commandLine.hasOption("verbose"));
+                Launcher<LanguageClient> launcher = LSPLauncher.createServerLauncher(server, System.in, System.out);
+                server.connect(launcher.getRemoteProxy());
+                launcher.startListening().get();
+            } catch (ExecutionException exc) {
+                System.err.println(exc.getCause().getMessage());
+                exc.getCause().printStackTrace();
+                return;
+            } catch (InterruptedException exc) {
+                System.err.println(exc.getMessage());
+                exc.printStackTrace();
+                return;
+            }
+        }
+
+        ServerSocket serverSocket = new ServerSocket();
+        InetSocketAddress address = new InetSocketAddress(InetAddress.getLocalHost(), Integer.parseInt(commandLine.getOptionValue("port", "2359")));
+        serverSocket.bind(address);
+        System.out.printf("Bonobo language server now listening at %s:%d%n", address.getAddress().getCanonicalHostName(), address.getPort());
+
+        while (true) {
+            Socket client = serverSocket.accept();
+            System.out.printf("New client connection: %s:%d%n", client.getInetAddress().getCanonicalHostName(), client.getPort());
+            BonoboLanguageServer server = new BonoboLanguageServer(commandLine.hasOption("verbose"));
+            Launcher<LanguageClient> launcher = LSPLauncher.createServerLauncher(server, client.getInputStream(), client.getOutputStream());
+            server.connect(launcher.getRemoteProxy());
+            launcher.startListening();
+        }
+    }
+
     private static Options makeCliOptions() {
         return new Options()
                 .addOption(Option.builder().longOpt("analysis-server").desc("Start the analysis server.").build())
                 .addOption(Option.builder().longOpt("analyze").desc("Statically analyzes the source, and prints JSON as output.").build())
+                .addOption("a", "analyze", false, "Run the language server.")
                 .addOption("debug", "verbose", false, "Enable verbose debug output.")
                 .addOption("h", "help", false, "print this help information.")
                 .addOption("o", "out", true, "The output file to be generated.")

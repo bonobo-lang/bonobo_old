@@ -11,10 +11,17 @@ import java.io.IOException;
 public class Bonobo {
     public static String VERSION = "1.0.0-SNAPSHOT";
 
-    public static BonoboParser parseFile(String filename) throws IOException {
-        ANTLRInputStream inputStream = new ANTLRFileStream(filename);
+    private static BonoboParser parse(ANTLRInputStream inputStream) {
         BonoboLexer lexer = new BonoboLexer(inputStream);
         CommonTokenStream tokenStream = new CommonTokenStream(lexer);
         return new BonoboParser(tokenStream);
+    }
+
+    public static BonoboParser parseFile(String filename) throws IOException {
+        return parse(new ANTLRFileStream(filename));
+    }
+
+    public static BonoboParser parseText(String text) {
+        return parse(new ANTLRInputStream(text));
     }
 }
