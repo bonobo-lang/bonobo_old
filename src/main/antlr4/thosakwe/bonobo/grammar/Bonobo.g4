@@ -11,7 +11,7 @@ STRING:
     ('\'' ('\\\'' | ~('\n' | '\''))* '\'')
     | ('"' ('\\"' | ~('\n' | '"'))* '"')
 ;
-ID: [a-z] [A-Za-z0-9_]*;
+ID: [A-Za-z_] [A-Za-z0-9_]*;
 
 compilationUnit: ('import' importSource)* topLevelDef*;
 

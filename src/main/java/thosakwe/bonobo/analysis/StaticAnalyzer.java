@@ -20,13 +20,19 @@ public class StaticAnalyzer extends BaseStaticAnalyzer {
         for (BonoboParser.TopLevelDefContext topLevelDefContext : ctx.topLevelDef()) {
             if (topLevelDefContext instanceof BonoboParser.TopLevelFuncDefContext) {
                 BonoboFunction function = analyzeTopLevelFunctionDefinition((BonoboParser.TopLevelFuncDefContext) topLevelDefContext);
-                library.addExport(function.getName(), function, function.getSource());
+                getScope().putFinal(function.getName(), function);
+
+                if (!function.getName().startsWith("_"))
+                    library.addExport(function.getName(), function, function.getSource());
             } else if (topLevelDefContext instanceof BonoboParser.ConstDefContext) {
                 Map<String, BonoboObject> variables = analyzeConstantDefinition((BonoboParser.ConstDefContext) topLevelDefContext);
 
                 for (String name : variables.keySet()) {
                     BonoboObject value = variables.get(name);
-                    library.addExport(name, value, value.getSource());
+                    getScope().putFinal(name, value);
+
+                    if (!name.startsWith("_"))
+                        library.addExport(name, value, value.getSource());
                 }
             }
         }
