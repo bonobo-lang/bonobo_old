@@ -1,6 +1,7 @@
 package thosakwe.bonobo.analysis;
 
 import org.antlr.v4.runtime.misc.Pair;
+import thosakwe.bonobo.Bonobo;
 import thosakwe.bonobo.grammar.BonoboParser;
 import thosakwe.bonobo.language.BonoboException;
 import thosakwe.bonobo.language.BonoboLibrary;
@@ -69,6 +70,10 @@ public class ErrorChecker {
             }
         } else if (bodyContext instanceof BonoboParser.BlockBodyContext) {
             // Walk through every statement, checking for typing errors
+            List<BonoboException> walked = visitBlock(((BonoboParser.BlockBodyContext) bodyContext).block(), function);
+
+            if (walked != null)
+                result.addAll(walked);
         }
 
         // Pop scope
@@ -76,10 +81,45 @@ public class ErrorChecker {
         return result;
     }
 
+    private List<BonoboException> visitBlock(BonoboParser.BlockContext block, BonoboFunction function) throws BonoboException {
+        List<BonoboException> result = new ArrayList<>();
+
+        for (BonoboParser.StmtContext stmtContext : block.stmt()) {
+            Pair<BonoboType, List<BonoboException>> stmtResult = visitStatement(stmtContext);
+            result.addAll(stmtResult.b);
+
+            if (stmtContext instanceof BonoboParser.ReturnStmtContext) {
+                BonoboType actuallyReturned = stmtResult.a;
+
+                if (!actuallyReturned.isAssignableTo(function.getReturnType())) {
+                    result.add(BonoboException.invalidReturnForFunction(function, actuallyReturned, function.getSource()));
+                }
+            }
+        }
+
+        return result;
+    }
+
     private Pair<BonoboType, List<BonoboException>> visitStatement(BonoboParser.StmtContext ctx) throws BonoboException {
         List<BonoboException> errors = new ArrayList<>();
 
         try {
+            if (ctx instanceof BonoboParser.VarDeclStmtContext) {
+                boolean isFinal = ((BonoboParser.VarDeclStmtContext) ctx).specifier.getText().equals("let");
+
+                for (BonoboParser.VariableDeclarationContext decl : ((BonoboParser.VarDeclStmtContext) ctx).variableDeclaration()) {
+                    String name = decl.name.getText();
+
+                    try {
+                        BonoboObject value = analyzer.analyzeExpression(decl.expr());
+                        analyzer.getScope().put(name, value, isFinal);
+                    } catch (BonoboException e) {
+                        errors.add(e);
+                        analyzer.getScope().put(name, new BonoboObjectImpl(BonoboUnknownType.INSTANCE, decl), isFinal);
+                    }
+                }
+            }
+
             if (ctx instanceof BonoboParser.ReturnStmtContext) {
                 return new Pair<>(analyzer.analyzeExpression(((BonoboParser.ReturnStmtContext) ctx).expr()).getType(), errors);
             }

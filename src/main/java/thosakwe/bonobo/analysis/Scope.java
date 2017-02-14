@@ -82,12 +82,12 @@ public class Scope {
         return put(name, value, true);
     }
 
-    private Symbol put(String name, BonoboObject value) {
+    public Symbol put(String name, BonoboObject value) {
         return put(name, value, false);
     }
 
 
-    private Symbol put(String name, BonoboObject value, boolean isFinal) {
+    public Symbol put(String name, BonoboObject value, boolean isFinal) {
         // TODO: Check if already exists
         Symbol symbol = new Symbol(name, value, isFinal);
         symbols.add(symbol);

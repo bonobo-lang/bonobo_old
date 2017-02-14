@@ -9,3 +9,9 @@ const myString = "Hello, world!";
 const _private = "Not exported";
 
 fn foo(id:int):num[][] => ((3, 1), (4, id));
+
+fn bar():int[] {
+    let x = 2;
+    let nums = (x, 2);
+    return nums;
+}
