@@ -49,6 +49,7 @@ expr:
     | INT #IntegerLiteralExpr
     | DBL #DoubleLiteralExpr
     | STRING #StringLiteralExpr
+    | expr 'as' type #TypeCastExpr
     | '(' lower=expr '.' '.' exclusive='.'? upper=expr ')' #RangeLiteralExpr
     | '(' (expr ',')+ expr ')' #ListLiteralExpr
     | callee=expr '(' ((args+=expr ',')* args+=expr)? ')' #InvocationExpr

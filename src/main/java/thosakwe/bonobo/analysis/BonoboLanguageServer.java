@@ -12,8 +12,12 @@ import java.util.concurrent.CompletableFuture;
  * Created on 2/14/2017.
  */
 public class BonoboLanguageServer implements LanguageServer {
-    private final TextDocumentService textDocumentService = new BonoboTextDocumentService();
+    private final TextDocumentService textDocumentService;
     private final WorkspaceService workspaceService = new BonoboWorkspaceService();
+
+    BonoboLanguageServer(boolean debug) {
+        this.textDocumentService = new BonoboTextDocumentService(debug);
+    }
 
     @Override
     public CompletableFuture<InitializeResult> initialize(InitializeParams initializeParams) {
@@ -27,7 +31,6 @@ public class BonoboLanguageServer implements LanguageServer {
 
     @Override
     public void exit() {
-
     }
 
     @Override
