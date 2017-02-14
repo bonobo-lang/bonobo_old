@@ -6,6 +6,7 @@ SL_CMT: '//' ~('\n')* -> channel(HIDDEN);
 BRACKETS: '[]';
 
 INT: '-'? [0-9]+;
+DBL: '-'? [0-9]+ '.' [0-9]+;
 STRING: '\'' ('\\\'' | ~('\n' | '\''))* '\'';
 ID: [a-z] [A-Za-z0-9_]*;
 
@@ -25,7 +26,10 @@ funcSignature: name=ID '(' ((params+=paramSpec ',')* params+=paramSpec)? ')' (':
 
 type:
     'int' #IntType
-    | type BRACKETS #TupleType
+    | 'double' #DoubleType
+    | 'num' #NumberType
+    | ID #VariableType
+    | type BRACKETS #ListType
 ;
 
 funcBody:
@@ -36,22 +40,25 @@ funcBody:
 
 paramSpec:
     ID #SimpleParamSpec
+    | ID ':' type #TypedParamSpec
     | 'fn' funcSignature #FunctionParamSpec
-    | ID BRACKETS+ #TupleParamSpec
 ;
 
 expr:
     ID #IdentifierExpr
     | INT #IntegerLiteralExpr
+    | DBL #DoubleLiteralExpr
     | STRING #StringExpr
     | '(' lower=expr '.' '.' exclusive='.'? upper=expr ')' #RangeLiteralExpr
-    | '(' (expr ',')+ expr ')' #TupleLiteralExpr
+    | '(' (expr ',')+ expr ')' #ListLiteralExpr
     | callee=ID '(' ((args+=expr ',')* args+=expr)? ')' #InvocationExpr
     | left=expr right=expr #AdjacentExprs
     | left=expr assignmentOp right=expr #AssignmentExpr
     | left=expr '^' right=expr #PowerExpr
-    | left=expr op=('*'|'/') right=expr #MultiplicativeExpr
-    | left=expr op=('+'|'-') right=expr #AdditiveExpr
+    | left=expr '*' right=expr #MultiplicationExpr
+    | left=expr '/' right=expr #DivisionExpr
+    | left=expr '+' right=expr #AdditionExpr
+    | left=expr '-' right=expr #SubtractionExpr
     | left=expr '%' right=expr #ModuloExpr
     | left=expr ('±'|'+-') right=expr #PlusMinusExpr
     | left=expr '==' right=expr #EqualsExpr

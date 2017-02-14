@@ -1,0 +1,9 @@
+// Run this in the dumper to see extracted type information for each statement.
+
+const one = 1.0;
+const three = -3;
+const doubles = (1.0, -2.3);
+const numbers = (1, 2.0);
+const listOfListsofLists = (((1, 2), (1, 2)), ((1, 2), (1, 2)));
+
+fn foo(id:int):num[][] => null;

@@ -1,24 +1,17 @@
 package thosakwe.bonobo.cli;
 
-import org.antlr.v4.runtime.misc.Pair;
 import org.apache.commons.cli.*;
-import thosakwe.bonobo.Json;
 import thosakwe.bonobo.Bonobo;
-import thosakwe.bonobo.analysis.StaticAnalyzer;
 import thosakwe.bonobo.grammar.BonoboParser;
-import thosakwe.bonobo.analysis.SyntaxErrorListener;
-import thosakwe.bonobo.analysis.CompilerError;
 
 import java.io.File;
 import java.io.PrintStream;
-import java.util.HashMap;
-import java.util.Map;
 
 public class Main {
     public static void main(String[] args) {
         try {
-            final Options cliOptions = makeCliOptions();
-            final CommandLine commandLine = new DefaultParser().parse(cliOptions, args);
+            Options cliOptions = makeCliOptions();
+            CommandLine commandLine = new DefaultParser().parse(cliOptions, args);
 
             if (commandLine.hasOption("help")) {
                 printUsage();
@@ -39,54 +32,26 @@ public class Main {
                 return;
             }
 
-            final String filename = new File(commandLine.getArgs()[0]).getAbsolutePath();
-            final Pair<BonoboParser, SyntaxErrorListener> pair = Bonobo.parseFile(filename);
-            final BonoboParser.CompilationUnitContext ast = pair.a.compilationUnit();
-            final StaticAnalyzer analyzer = new StaticAnalyzer(pair.b, filename);
-            analyzer.visitCompilationUnit(ast);
-
-            if (commandLine.hasOption("analyze")) {
-                final Map<String, Object> result = new HashMap<>();
-                result.put("errors", analyzer.getErrors());
-                result.put("version", Bonobo.VERSION);
-                System.out.println(Json.stringify(result));
-            } else if (!analyzer.getErrors().isEmpty()) {
-                for (CompilerError error : analyzer.getErrors()) {
-                    System.err.printf("%s: %s (%s:%d:%d)%n", error.getType(), error.getMessage(), filename, error.getLine(), error.getColumn());
-                }
-
-                System.exit(1);
-            }
-
-            for (CompilerError warning : analyzer.getWarnings()) {
-                System.out.printf("%s: %s (%s:%d:%d)%n", warning.getType(), warning.getMessage(), filename, warning.getLine(), warning.getColumn());
-            }
-
-            if (!analyzer.getErrors().isEmpty()) {
-                for (CompilerError error : analyzer.getErrors()) {
-                    System.out.printf("%s: %s (%s:%d:%d)%n", error.getType(), error.getMessage(), filename, error.getLine(), error.getColumn());
-                }
-
-                System.exit(1);
-                return;
-            }
+            String filename = new File(commandLine.getArgs()[0]).getAbsolutePath();
+            BonoboParser parser = Bonobo.parseFile(filename);
+            BonoboParser.CompilationUnitContext ast = parser.compilationUnit();
 
             String outputFilename;
 
             if (commandLine.hasOption("out"))
                 outputFilename = commandLine.getOptionValue("out");
             else {
-                final int lastDot = filename.lastIndexOf('.');
+                int lastDot = filename.lastIndexOf('.');
 
                 if (lastDot == -1)
-                    outputFilename = "out.c";
+                    outputFilename = "out.class";
                 else {
                     String baseName = filename.substring(0, lastDot);
-                    outputFilename = String.format("%s.c", baseName);
+                    outputFilename = String.format("%s.class", baseName);
                 }
             }
 
-            final PrintStream out = commandLine.hasOption("write-stdout") ? System.out : new PrintStream(outputFilename);
+            PrintStream out = commandLine.hasOption("write-stdout") ? System.out : new PrintStream(outputFilename);
             out.println("TODO: Compilation");
         } catch (ParseException exc) {
             printUsage();
@@ -105,7 +70,7 @@ public class Main {
                 .addOption("debug", "verbose", false, "Enable verbose debug output.")
                 .addOption("h", "help", false, "print this help information.")
                 .addOption("p", "port", true, "Specify a port for the analysis server. Default: 2359")
-                .addOption("stdout", "write-stdout", false, "Prints the resulting C code stdout.")
+                .addOption("stdout", "write-stdout", false, "Prints the resulting JVM bytecode to stdout.")
                 .addOption("v", "version", false, "Prints the program version.");
     }
 

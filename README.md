@@ -1,17 +1,10 @@
 # Bonobo
-Goal: Elegant language that compiles to efficient native code. Provide GC
-via the compiler, rather than a runtime.
+Goal: Elegant language that compiles to efficient JVM bytecode.
 
 # Usage
 
-The Bonobo compiler produces C programs.
-You can pipe its output into GCC for one-step compilation:
-```bash
-bin/bonobo main.str -stdout | gcc -xc -o main.o -
-```
+The Bonobo compiler produces JVM programs.
 
-Alternatively, if you wish to see the generated C code:
 ```bash
-bin/bonobo main.str
-gcc main.c -o main.o
+bin/bonobo -o Main.class main.bnb
 ```

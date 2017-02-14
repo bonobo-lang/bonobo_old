@@ -8,8 +8,7 @@ public class Scope {
     private Scope parent = null;
     private final List<Symbol> symbols = new ArrayList<>();
 
-    Scope() {
-    }
+    public Scope() {}
 
     private Scope(Scope parent, Collection<Symbol> symbols) {
         this();
@@ -17,7 +16,7 @@ public class Scope {
         this.symbols.addAll(symbols);
     }
 
-    Symbol findOrCreate(String key) {
+    public Symbol findOrCreate(String key) {
         Symbol resolved = this.getSymbol(key);
 
         if (resolved == null) {
@@ -29,17 +28,17 @@ public class Scope {
     }
 
 
-    Scope fork() {
+    public Scope fork() {
         return new Scope(this, symbols);
     }
 
-    Scope join() {
+    public Scope join() {
         if (parent == null)
             throw new NullPointerException("The root scope does not have a parent.");
         return parent;
     }
 
-    List<Symbol> getExports(boolean importPrivate) {
+    public List<Symbol> getExports(boolean importPrivate) {
         List<Symbol> exports = new ArrayList<>();
         List<String> names = new ArrayList<>();
         Scope scope = this;
@@ -59,7 +58,7 @@ public class Scope {
         return exports;
     }
 
-    Scope getRoot() {
+    public Scope getRoot() {
         Scope root = this;
 
         while (root.parent != null)
@@ -68,7 +67,7 @@ public class Scope {
         return root;
     }
 
-    Symbol getSymbol(String key) {
+    public Symbol getSymbol(String key) {
         for (Symbol symbol : symbols) {
             if (symbol.getName().equals(key))
                 return symbol;
