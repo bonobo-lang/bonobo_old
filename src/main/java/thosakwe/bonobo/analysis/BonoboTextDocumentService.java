@@ -29,29 +29,52 @@ public class BonoboTextDocumentService implements TextDocumentService {
         this.serverContext = context;
     }
 
-    private BonoboLibrary analyze(TextDocumentPositionParams textDocumentPositionParams) {
+    private BonoboLibrary analyze(String uri) throws IOException {
         try {
-            BonoboParser parser = Bonobo.parseFile(textDocumentPositionParams.getTextDocument().getUri());
-            StaticAnalyzer analyzer = new StaticAnalyzer(debug);
-
-            try {
-                return analyzer.analyzeCompilationUnit(parser.compilationUnit());
-            } catch (BonoboException exc) {
-                return new BonoboLibrary(parser.compilationUnit());
-            }
+            BonoboParser parser = Bonobo.parseFile(uri);
+            return analyze(parser);
         } catch (IOException exc) {
             return new BonoboLibrary(null);
         }
     }
 
+    private BonoboLibrary analyze(TextDocumentPositionParams textDocumentPositionParams) {
+        try {
+            BonoboParser parser = Bonobo.parseFile(textDocumentPositionParams.getTextDocument().getUri());
+            return analyze(parser);
+        } catch (IOException exc) {
+            return new BonoboLibrary(null);
+        }
+    }
+
+    private BonoboLibrary analyze(BonoboParser parser) {
+        try {
+            StaticAnalyzer analyzer = new StaticAnalyzer(debug);
+            return analyzer.analyzeCompilationUnit(parser.compilationUnit());
+        } catch (BonoboException exc) {
+            return new BonoboLibrary(parser.compilationUnit());
+        }
+    }
+
     private void diagnose(String uri, BonoboParser.CompilationUnitContext ast) {
-        System.out.printf("Diagnosing %s...%n", uri);
-        Diagnostic diagnostic = new Diagnostic();
-        diagnostic.setMessage("WTF LOL");
-        diagnostic.setRange(getNodeRange(ast));
-        diagnostic.setSeverity(DiagnosticSeverity.Error);
-        diagnostic.setSource(ast.getText());
-        serverContext.getLanguageClient().publishDiagnostics(new PublishDiagnosticsParams(uri, Collections.singletonList(diagnostic)));
+        try {
+            BonoboLibrary library = analyze(uri);
+            ErrorChecker errorChecker = new ErrorChecker()
+            Diagnostic diagnostic = new Diagnostic();
+            diagnostic.setMessage("WTF LOL");
+            diagnostic.setRange(getNodeRange(ast));
+            diagnostic.setSeverity(DiagnosticSeverity.Error);
+            diagnostic.setSource(ast.getText());
+            serverContext.getLanguageClient().logMessage(new MessageParams(MessageType.Warning, "WTF"));
+            PublishDiagnosticsParams diagnosticsParams = new PublishDiagnosticsParams();
+            List<Diagnostic> diagnosticsList = new ArrayList<>();
+            diagnosticsParams.setUri(uri);
+            diagnosticsList.add(diagnostic);
+            diagnosticsParams.setDiagnostics(diagnosticsList);
+            serverContext.getLanguageClient().publishDiagnostics(diagnosticsParams);
+        } catch (Exception exc) {
+            // Ignore IOException
+        }
     }
 
     private Range getNodeRange(ParserRuleContext ctx) {
@@ -63,12 +86,24 @@ public class BonoboTextDocumentService implements TextDocumentService {
         return range;
     }
 
+
+    private void validateTextDocument(String uri, String text) {
+        try {
+            BonoboParser parser = Bonobo.parseText(text);
+            diagnose(uri, parser.compilationUnit());
+        } catch (Exception exc) {
+            System.err.println("Validation error: " + exc.getMessage());
+            exc.printStackTrace();
+        }
+    }
+
     private void validateTextDocument(TextDocumentIdentifier documentId) {
         try {
             BonoboParser parser = Bonobo.parseFile(documentId.getUri());
             diagnose(documentId.getUri(), parser.compilationUnit());
         } catch (Exception exc) {
-            //
+            System.err.println("Validation error: " + exc.getMessage());
+            exc.printStackTrace();
         }
     }
 
@@ -77,7 +112,8 @@ public class BonoboTextDocumentService implements TextDocumentService {
             BonoboParser parser = Bonobo.parseText(document.getText());
             diagnose(document.getUri(), parser.compilationUnit());
         } catch (Exception exc) {
-            //
+            System.err.println("Validation error: " + exc.getMessage());
+            exc.printStackTrace();
         }
     }
 
@@ -85,7 +121,8 @@ public class BonoboTextDocumentService implements TextDocumentService {
     public CompletableFuture<CompletionList> completion(TextDocumentPositionParams textDocumentPositionParams) {
         BonoboLibrary library = analyze(textDocumentPositionParams);
         CompletionList completions = new CompletionList();
-        completions.setItems(new ArrayList<>());
+        List<CompletionItem> completionItemList = new ArrayList<>();
+        System.out.printf("Completing for %d export(s) from %s%n", library.getExports().size(), library.getSource().getText());
 
         for (String name : library.getExports().keySet()) {
             System.out.printf("Completing %s%n", name);
@@ -93,9 +130,10 @@ public class BonoboTextDocumentService implements TextDocumentService {
             CompletionItem completionItem = new CompletionItem();
             completionItem.setKind(value instanceof BonoboFunction ? CompletionItemKind.Function : CompletionItemKind.Variable);
             completionItem.setLabel(name);
-            completions.getItems().add(completionItem);
+            completionItemList.add(completionItem);
         }
 
+        completions.setItems(completionItemList);
         return CompletableFuture.completedFuture(completions);
     }
 
@@ -182,11 +220,11 @@ public class BonoboTextDocumentService implements TextDocumentService {
 
     @Override
     public void didClose(DidCloseTextDocumentParams didCloseTextDocumentParams) {
-        // validateTextDocument(didCloseTextDocumentParams.getTextDocument());
+        validateTextDocument(didCloseTextDocumentParams.getTextDocument());
     }
 
     @Override
     public void didSave(DidSaveTextDocumentParams didSaveTextDocumentParams) {
-        // validateTextDocument(didSaveTextDocumentParams.getTextDocument());
+        validateTextDocument(didSaveTextDocumentParams.getTextDocument());
     }
 }

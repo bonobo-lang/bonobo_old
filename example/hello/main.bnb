@@ -1,3 +1,6 @@
 fn main() => print 'Hello, world!';
 
 fn go(id:int, a:string):int => 34;
+
+fn p() {
+}
