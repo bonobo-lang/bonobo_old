@@ -23,7 +23,9 @@ class BaseStaticAnalyzer {
         scope = scope.fork(source);
     }
 
-    void popScope() {
+    Scope popScope() {
+        Scope result = scope;
         scope = scope.join();
+        return result;
     }
 }

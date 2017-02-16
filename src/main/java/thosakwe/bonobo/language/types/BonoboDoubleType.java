@@ -31,7 +31,7 @@ public class BonoboDoubleType extends BonoboType {
     private BonoboType typeForArithmetic(String operator, BonoboType otherType, ParserRuleContext source) throws BonoboException {
         if (otherType.isAssignableTo(BonoboIntegerType.INSTANCE) || otherType.isAssignableTo(INSTANCE))
             return INSTANCE;
-        throw BonoboException.wrongTypeForOperator(this, otherType, operator, source);
+        throw BonoboException.wrongTypeForOperation(this, otherType, operator, source);
     }
 
     @Override

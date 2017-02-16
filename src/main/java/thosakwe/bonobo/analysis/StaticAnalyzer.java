@@ -11,8 +11,11 @@ import thosakwe.bonobo.language.objects.BonoboFunctionParameter;
 import thosakwe.bonobo.language.objects.BonoboObjectImpl;
 import thosakwe.bonobo.language.types.*;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 public class StaticAnalyzer extends BaseStaticAnalyzer {
     public StaticAnalyzer(boolean debug, BonoboParser.CompilationUnitContext source) {
@@ -151,6 +154,33 @@ public class StaticAnalyzer extends BaseStaticAnalyzer {
             return new BonoboObjectImpl(BonoboStringType.INSTANCE, ctx);
         }
 
+        if (ctx instanceof BonoboParser.TypeCastExprContext) {
+            BonoboParser.TypeCastExprContext typeCastExprContext = (BonoboParser.TypeCastExprContext) ctx;
+            BonoboObject object = analyzeExpression(typeCastExprContext.expr());
+            BonoboType type = analyzeType(typeCastExprContext.type());
+
+            if (!object.getType().isAssignableTo(type) && !type.isAssignableTo(object.getType()))
+                throw BonoboException.cannotCast(object.getType(), type, ctx);
+            return new BonoboObjectImpl(type, ctx);
+        }
+
+        if (ctx instanceof BonoboParser.IndexerExprContext) {
+            BonoboParser.IndexerExprContext indexerExprContext = (BonoboParser.IndexerExprContext) ctx;
+            BonoboObject target = analyzeExpression(indexerExprContext.target);
+            BonoboObject index = analyzeExpression(indexerExprContext.index);
+            return new BonoboObjectImpl(target.getType().typeForIndex(index.getType(), ctx), ctx);
+        }
+
+        if (ctx instanceof BonoboParser.RangeLiteralExprContext) {
+            BonoboParser.RangeLiteralExprContext rangeLiteralExprContext = (BonoboParser.RangeLiteralExprContext) ctx;
+            BonoboObject lower = analyzeExpression(rangeLiteralExprContext.lower), upper = analyzeExpression(rangeLiteralExprContext.upper);
+            BonoboType commonType = lower.getType().getCommonParentType(upper.getType());
+
+            if (commonType == null)
+                throw BonoboException.noCommonTypeFor("list literal", ctx);
+            return new BonoboObjectImpl(new BonoboListType(commonType), ctx);
+        }
+
         if (ctx instanceof BonoboParser.ListLiteralExprContext) {
             BonoboType commonParentType = null;
 
@@ -163,9 +193,7 @@ public class StaticAnalyzer extends BaseStaticAnalyzer {
                     BonoboType newCommon = commonParentType.getCommonParentType(type);
 
                     if (newCommon == null) {
-                        throw new BonoboException(
-                                "Cannot resolve common type for list literal. Ensure that all members share a base type.",
-                                ctx);
+                        throw BonoboException.noCommonTypeFor("list literal", ctx);
                     } else if (commonParentType != newCommon) {
                         commonParentType = newCommon;
                     }
@@ -173,6 +201,18 @@ public class StaticAnalyzer extends BaseStaticAnalyzer {
             }
 
             return new BonoboObjectImpl(new BonoboListType(commonParentType), ctx);
+        }
+
+        if (ctx instanceof BonoboParser.InvocationExprContext) {
+            BonoboParser.InvocationExprContext invocationExprContext = (BonoboParser.InvocationExprContext) ctx;
+            BonoboObject callee = analyzeExpression(((BonoboParser.InvocationExprContext) ctx).callee);
+            List<BonoboType> args = new ArrayList<>();
+
+            for (BonoboParser.ExprContext arg : invocationExprContext.args) {
+                args.add(analyzeExpression(arg).getType());
+            }
+
+            return new BonoboObjectImpl(callee.getType().typeForInvoke(args, ctx), ctx);
         }
 
         if (ctx instanceof BonoboParser.ParenthesizedExprContext) {

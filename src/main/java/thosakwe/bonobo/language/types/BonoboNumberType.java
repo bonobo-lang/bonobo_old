@@ -19,7 +19,7 @@ public class BonoboNumberType extends BonoboType {
     public BonoboType modulo(BonoboType left, BonoboType right, ParserRuleContext source) throws BonoboException {
         if (left.isAssignableTo(INSTANCE) && right.isAssignableTo(INSTANCE))
             return BonoboIntegerType.INSTANCE;
-        throw BonoboException.wrongTypeForOperator(left, right, "%", source);
+        throw BonoboException.wrongTypeForOperation(left, right, "%", source);
     }
 
     @Override
@@ -35,7 +35,7 @@ public class BonoboNumberType extends BonoboType {
     private BonoboType typeForArithmetic(String operator, BonoboType otherType, ParserRuleContext source) throws BonoboException {
         if (otherType.isAssignableTo(BonoboIntegerType.INSTANCE) || otherType.isAssignableTo(INSTANCE))
             return INSTANCE;
-        throw BonoboException.wrongTypeForOperator(this, otherType, operator, source);
+        throw BonoboException.wrongTypeForOperation(this, otherType, operator, source);
     }
 
     @Override

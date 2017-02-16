@@ -32,6 +32,13 @@ public class BonoboListType extends BonoboType {
     }
 
     @Override
+    public BonoboType typeForIndex(BonoboType index, ParserRuleContext source) throws BonoboException {
+        if (!index.isAssignableTo(BonoboIntegerType.INSTANCE))
+            throw new BonoboException(String.format("Lists can only be indexed by integers. You tried using an instance of %s instead.", index.getName()), source);
+        return referenceType;
+    }
+
+    @Override
     public BonoboType typeForPow(BonoboType otherType, ParserRuleContext source) throws BonoboException {
         return new BonoboListType(referenceType.typeForPow(otherType, source));
     }

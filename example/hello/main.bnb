@@ -1,7 +1,1 @@
 fn main() => print 'Hello, world!';
-
-fn dance() {
-    let a = 2;
-    let foolish = "string";
-    return foolish;
-}

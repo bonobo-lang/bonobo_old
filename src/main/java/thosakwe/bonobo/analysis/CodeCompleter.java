@@ -14,6 +14,8 @@ import thosakwe.bonobo.language.BonoboLibrary;
 import thosakwe.bonobo.language.BonoboObject;
 import thosakwe.bonobo.language.objects.BonoboFunction;
 import thosakwe.bonobo.language.objects.BonoboFunctionParameter;
+import thosakwe.bonobo.language.types.BonoboFunctionType;
+import thosakwe.bonobo.language.types.BonoboUnknownType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 public class CodeCompleter extends BonoboBaseListener {
+    private final List<String> addedNames = new ArrayList<>();
     private final StaticAnalyzer analyzer;
     private final List<CompletionItem> completionItems = new ArrayList<>();
     private final Position currentPosition;
@@ -36,21 +39,21 @@ public class CodeCompleter extends BonoboBaseListener {
 
     public CompletionList complete(BonoboParser.CompilationUnitContext ast) {
         try {
-            ParserRuleContext ctx = treeAtPosition(currentPosition, ast);
-            completeTree(ctx);
-            BonoboLibrary library = analyzer.analyzeCompilationUnit(ast);
 
             try {
-                ErrorChecker errorChecker = new ErrorChecker(analyzer);
-                errorChecker.visitLibrary(library);
+                ParserRuleContext ctx = treeAtPosition(currentPosition, ast);
+                BonoboLibrary library = analyzer.analyzeCompilationUnit(ast);
+                completeTree(ctx, library);
+                // ErrorChecker errorChecker = new ErrorChecker(analyzer);
+                // errorChecker.visitLibrary(library);
+
+                for (String name : library.getExports().keySet()) {
+                    BonoboObject value = library.getExports().get(name);
+                    addCompletionItem(name, value);
+                }
             } catch (BonoboException exc) {
                 textDocumentService.printDebug("Error when trying to complete: " + exc.getMessage());
                 exc.printStackTrace();
-            }
-
-            for (String name : library.getExports().keySet()) {
-                BonoboObject value = library.getExports().get(name);
-                completionItems.add(completeObject(name, value));
             }
         } catch (Exception exc) {
             System.err.println("Completion error: " + exc.getMessage());
@@ -60,30 +63,85 @@ public class CodeCompleter extends BonoboBaseListener {
         // ParseTreeWalker.DEFAULT.walk(this, ast);
         textDocumentService.printDebug(String.format("Completed with %d item(s)%n", completionItems.size()));
         CompletionList completionList = new CompletionList();
-        completionList.setIsIncomplete(!completionItems.isEmpty());
+        completionList.setIsIncomplete(completionItems.isEmpty());
         completionList.setItems(completionItems);
         return completionList;
     }
 
-    private void completeTree(ParserRuleContext ctx) {
-        Map<String, BonoboObject> symbols = currentlyAvailableSymbols(ctx);
-
-        if (symbols != null) {
-            symbols.forEach(this::completeObject);
+    private void addCompletionItem(String name, BonoboObject value) {
+        if (value.getType() != BonoboUnknownType.INSTANCE && !addedNames.contains(name)) {
+            completionItems.add(completeObject(name, value));
+            addedNames.add(name);
         }
     }
 
-    private Map<String, BonoboObject> currentlyAvailableSymbols(ParserRuleContext ctx) {
+    private void completeTree(ParserRuleContext ctx, BonoboLibrary library) throws BonoboException {
+        Map<String, BonoboObject> symbols = currentlyAvailableSymbols(ctx, library);
+
+        if (symbols != null) {
+            for (String name : symbols.keySet()) {
+                addCompletionItem(name, symbols.get(name));
+            }
+        }
+    }
+
+    private Map<String, BonoboObject> currentlyAvailableSymbols(ParserRuleContext ctx, BonoboLibrary library) throws BonoboException {
+        // Find closest function
+        BonoboParser.TopLevelFuncDefContext funcDefContext = null;
+        ParserRuleContext current = ctx;
+
+        while (!(current instanceof BonoboParser.TopLevelFuncDefContext)) {
+            ParserRuleContext parent = current.getParent();
+
+            if (parent instanceof BonoboParser.TopLevelFuncDefContext) {
+                funcDefContext = (BonoboParser.TopLevelFuncDefContext) parent;
+                break;
+            } else if (parent == null) break;
+            else current = parent;
+        }
+
         Map<String, BonoboObject> result = new HashMap<>();
-        analyzer.analyzeContext(ctx);
-        Scope lastScope = analyzer.getLastPoppedScope();
 
-        if (lastScope == null)
-            lastScope = analyzer.getScope();
+        if (funcDefContext == null) {
+            textDocumentService.printDebug("Couldn't resolve nearest top-level function.");
+        } else {
+            String name = funcDefContext.funcSignature().name.getText();
+            textDocumentService.printDebug(String.format("Nearest top-level func: %s", name));
 
-        if (lastScope != null) {
-            result.putAll(completeScope(lastScope.getGlobalScope()));
-            result.putAll(completeScope(lastScope));
+            for (String key : library.getExports().keySet()) {
+                BonoboObject value = library.getExports().get(key);
+
+                if (key.equals(name) && value.getType().isAssignableTo(BonoboFunctionType.INSTANCE)) {
+                    // Found the function we are in...
+                    ParserRuleContext source = value.getSource();
+
+                    if (source instanceof BonoboParser.TopLevelFuncDefContext) {
+                        textDocumentService.printDebug(String.format("Entering top-level func for completion: %s", name));
+                        analyzer.pushScope(funcDefContext);
+
+                        // Visit every statement...
+                        ErrorChecker errorChecker = new PositionAwareErrorChecker(analyzer, currentPosition);
+                        errorChecker.visitFunction((BonoboFunction) value);
+
+                        Scope lastScope = analyzer.popScope();
+
+                        if (lastScope == null)
+                            lastScope = analyzer.getScope();
+
+                        if (lastScope != null) {
+                            // result.putAll(completeScope(lastScope.getGlobalScope()));
+                            result.putAll(completeScope(lastScope));
+                        }
+
+                        break;
+                    } else {
+                        textDocumentService.printDebug(String.format(
+                                "Found a symbol %s, but its source is a(n) %s, not a TopLevelFuncDefContext.",
+                                name,
+                                source.getClass().getSimpleName()));
+                    }
+                }
+            }
         }
 
         return result;
@@ -92,9 +150,11 @@ public class CodeCompleter extends BonoboBaseListener {
     private Map<String, BonoboObject> completeScope(Scope scope) {
         Map<String, BonoboObject> result = new HashMap<>();
 
-        if (scope != null && scope.getSource() != null && (nodeIsInRange(currentPosition, scope.getSource()) || true)) {
+        if (scope != null && scope.getSource() != null && nodeIsInRange(currentPosition, scope.getSource())) {
             textDocumentService.printDebug(String.format("Completing scope with %d symbol(s) from %s %s", scope.size(), scope.getSource().getClass().getSimpleName(), scope.getSource().getText()));
+
             for (Symbol symbol : scope.getUnique()) {
+                textDocumentService.printDebug(String.format("%s => %s", symbol.getName(), symbol.getValue().getType().getName()));
                 result.put(symbol.getName(), symbol.getValue());
             }
 
@@ -113,11 +173,18 @@ public class CodeCompleter extends BonoboBaseListener {
         return result;
     }
 
-    private boolean nodeIsInRange(Position position, ParserRuleContext ctx) {
+    public static boolean nodeIsInRange(Position position, ParserRuleContext ctx) {
         if (ctx == null || position == null) return false;
-        int line = ctx.start.getLine();
+        int line = ctx.start.getLine(), charPos = ctx.start.getCharPositionInLine();
         line = line > 0 ? line - 1 : line;
-        return line < position.getLine() || (line == position.getLine() && ctx.start.getCharPositionInLine() <= position.getCharacter());
+        return line < position.getLine() || (line == position.getLine() && charPos <= position.getCharacter());
+
+        /*line = ctx.stop.getLine();
+        charPos = ctx.stop.getCharPositionInLine() + ctx.stop.getText().length();
+        line = line > 0 ? line - 1 : line;
+        boolean endWithinRange = line > position.getLine() || (line == position.getLine() && charPos >= position.getCharacter());*/
+
+        //return startWithinRange && endWithinRange;
     }
 
     private ParserRuleContext treeAtPosition(Position position, ParserRuleContext ast) {

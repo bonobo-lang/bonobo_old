@@ -33,7 +33,7 @@ public class BonoboIntegerType extends BonoboType {
             return INSTANCE;
         else if (otherType.isAssignableTo(BonoboDoubleType.INSTANCE))
             return BonoboDoubleType.INSTANCE;
-        throw BonoboException.wrongTypeForOperator(this, otherType, operator, source);
+        throw BonoboException.wrongTypeForOperation(this, otherType, operator, source);
     }
 
     @Override

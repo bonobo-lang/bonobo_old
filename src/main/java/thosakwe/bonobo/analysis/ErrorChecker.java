@@ -50,7 +50,7 @@ public class ErrorChecker {
         return result;
     }
 
-    private List<BonoboException> visitTopLevelFunction(BonoboFunction function, BonoboParser.TopLevelFuncDefContext source) throws BonoboException {
+    public List<BonoboException> visitTopLevelFunction(BonoboFunction function, BonoboParser.TopLevelFuncDefContext source) throws BonoboException {
         List<BonoboException> result = new ArrayList<>();
 
         // Push scope and load parameters
@@ -84,7 +84,7 @@ public class ErrorChecker {
         return result;
     }
 
-    private List<BonoboException> visitBlock(BonoboParser.BlockContext block, BonoboFunction function) throws BonoboException {
+    public List<BonoboException> visitBlock(BonoboParser.BlockContext block, BonoboFunction function) throws BonoboException {
         List<BonoboException> result = new ArrayList<>();
 
         for (BonoboParser.StmtContext stmtContext : block.stmt()) {
@@ -108,7 +108,7 @@ public class ErrorChecker {
         return result;
     }
 
-    private Pair<BonoboType, List<BonoboException>> visitStatement(BonoboParser.StmtContext ctx, BonoboFunction function) throws BonoboException {
+    public Pair<BonoboType, List<BonoboException>> visitStatement(BonoboParser.StmtContext ctx, BonoboFunction function) throws BonoboException {
         List<BonoboException> errors = new ArrayList<>();
 
         try {

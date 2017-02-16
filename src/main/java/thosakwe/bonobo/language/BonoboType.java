@@ -73,4 +73,8 @@ public abstract class BonoboType {
     public abstract BonoboType typeForSubtract(BonoboType otherType, ParserRuleContext source) throws BonoboException;
 
     public abstract BonoboType typeForModulo(BonoboType otherType, ParserRuleContext source) throws BonoboException;
+
+    public BonoboType typeForIndex(BonoboType index, ParserRuleContext source) throws BonoboException {
+        throw new BonoboException(String.format("A(n) type %s cannot be indexed by a(n) %s.", getName(), index.getName()), source);
+    }
 }
