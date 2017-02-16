@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public class Scope {
+    private Scope globalScope = null;
     private final List<Scope> children = new ArrayList<>();
     private final ParserRuleContext source;
     private final List<Symbol> symbols = new ArrayList<>();
@@ -25,10 +26,14 @@ public class Scope {
     }
 
     private Scope(Scope parent, Collection<Symbol> symbols, ParserRuleContext source) {
-        this();
-        this.debug = parent.debug;
+        this(parent.debug, source);
         this.parent = parent;
         this.symbols.addAll(symbols);
+    }
+
+    private void createGlobal() {
+        if (getRoot().globalScope == null)
+            getRoot().globalScope = new Scope(getRoot(), new ArrayList<>(), source);
     }
 
     public Symbol findOrCreate(String key) {
@@ -59,6 +64,10 @@ public class Scope {
         return getUnique().stream()
                 .filter(symbol -> importPrivate || !symbol.getName().startsWith("_"))
                 .collect(Collectors.toList());
+    }
+
+    public Scope getGlobalScope() {
+        return getRoot().globalScope;
     }
 
     public Scope getRoot() {
@@ -119,11 +128,33 @@ public class Scope {
             System.out.printf("Setting %s symbol %s to %s%n", isFinal ? "constant" : "mutable", name, value.getType().getName());
         }
 
+        Scope global = getGlobalScope();
+
+        if (global != null) {
+            List<Symbol> toRemove = global.symbols.stream()
+                    .filter(sym -> sym.getName().equals(name))
+                    .collect(Collectors.toList());
+            toRemove.forEach(global.symbols::remove);
+            global.symbols.add(symbol);
+        } else if (debug) {
+            System.out.println("No global scope found to push to.");
+        }
+
         symbols.add(symbol);
         return symbol;
     }
 
     public List<Scope> getChildren() {
         return children;
+    }
+
+    public int size() {
+        return symbols.size();
+    }
+
+    public static Scope startGlobal(boolean debug, ParserRuleContext source) {
+        Scope scope = new Scope(debug, source);
+        scope.createGlobal();
+        return scope;
     }
 }

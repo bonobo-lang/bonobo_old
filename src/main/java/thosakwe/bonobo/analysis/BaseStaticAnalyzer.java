@@ -7,7 +7,7 @@ class BaseStaticAnalyzer {
     private Scope scope;
 
     BaseStaticAnalyzer(boolean debug, ParserRuleContext source) {
-        this.scope = new Scope(debug, source);
+        this.scope = Scope.startGlobal(debug, source);
     }
 
     public Scope getLastPoppedScope() {

@@ -9,6 +9,7 @@ import org.eclipse.lsp4j.CompletionList;
 import org.eclipse.lsp4j.Position;
 import thosakwe.bonobo.grammar.BonoboBaseListener;
 import thosakwe.bonobo.grammar.BonoboParser;
+import thosakwe.bonobo.language.BonoboException;
 import thosakwe.bonobo.language.BonoboLibrary;
 import thosakwe.bonobo.language.BonoboObject;
 import thosakwe.bonobo.language.objects.BonoboFunction;
@@ -39,6 +40,14 @@ public class CodeCompleter extends BonoboBaseListener {
             completeTree(ctx);
             BonoboLibrary library = analyzer.analyzeCompilationUnit(ast);
 
+            try {
+                ErrorChecker errorChecker = new ErrorChecker(analyzer);
+                errorChecker.visitLibrary(library);
+            } catch (BonoboException exc) {
+                textDocumentService.printDebug("Error when trying to complete: " + exc.getMessage());
+                exc.printStackTrace();
+            }
+
             for (String name : library.getExports().keySet()) {
                 BonoboObject value = library.getExports().get(name);
                 completionItems.add(completeObject(name, value));
@@ -48,7 +57,7 @@ public class CodeCompleter extends BonoboBaseListener {
             exc.printStackTrace();
         }
 
-        ParseTreeWalker.DEFAULT.walk(this, ast);
+        // ParseTreeWalker.DEFAULT.walk(this, ast);
         textDocumentService.printDebug(String.format("Completed with %d item(s)%n", completionItems.size()));
         CompletionList completionList = new CompletionList();
         completionList.setIsIncomplete(!completionItems.isEmpty());
@@ -69,18 +78,22 @@ public class CodeCompleter extends BonoboBaseListener {
         analyzer.analyzeContext(ctx);
         Scope lastScope = analyzer.getLastPoppedScope();
 
-        if (lastScope != null) {
+        if (lastScope == null)
             lastScope = analyzer.getScope();
+
+        if (lastScope != null) {
+            result.putAll(completeScope(lastScope.getGlobalScope()));
+            result.putAll(completeScope(lastScope));
         }
 
-        result.putAll(completeScope(lastScope));
         return result;
     }
 
     private Map<String, BonoboObject> completeScope(Scope scope) {
         Map<String, BonoboObject> result = new HashMap<>();
 
-        if (nodeIsInRange(currentPosition, scope.getSource())) {
+        if (scope != null && scope.getSource() != null && (nodeIsInRange(currentPosition, scope.getSource()) || true)) {
+            textDocumentService.printDebug(String.format("Completing scope with %d symbol(s) from %s %s", scope.size(), scope.getSource().getClass().getSimpleName(), scope.getSource().getText()));
             for (Symbol symbol : scope.getUnique()) {
                 result.put(symbol.getName(), symbol.getValue());
             }
@@ -88,14 +101,20 @@ public class CodeCompleter extends BonoboBaseListener {
             for (Scope child : scope.getChildren()) {
                 result.putAll(completeScope(child));
             }
+        } else if (scope != null) {
+            if (scope.getSource() == null)
+                textDocumentService.printDebug(String.format("%d symbol(s) out of range from null-sourced scope (global)?", scope.size()));
+            else
+                textDocumentService.printDebug(String.format("%d symbol(s) out of range from %s %s", scope.size(), scope.getSource().getClass().getSimpleName(), scope.getSource().getText()));
+        } else {
+            textDocumentService.printDebug("Completing null scope???");
         }
 
         return result;
     }
 
     private boolean nodeIsInRange(Position position, ParserRuleContext ctx) {
-        if (ctx == null) return false;
-
+        if (ctx == null || position == null) return false;
         int line = ctx.start.getLine();
         line = line > 0 ? line - 1 : line;
         return line < position.getLine() || (line == position.getLine() && ctx.start.getCharPositionInLine() <= position.getCharacter());
@@ -127,7 +146,7 @@ public class CodeCompleter extends BonoboBaseListener {
     }
 
     private CompletionItem completeObject(String name, BonoboObject value) {
-        textDocumentService.printDebug(String.format("Completing %s%n", name));
+        // textDocumentService.printDebug(String.format("Completing %s%n", name));
         CompletionItem completionItem = new CompletionItem();
         completionItem.setDetail(value.getType().getName());
         completionItem.setKind(getCompletionKindForObject(value));
@@ -153,7 +172,7 @@ public class CodeCompleter extends BonoboBaseListener {
             completionItem.setInsertText(buf.toString());
         }
 
-        textDocumentService.printDebug(completionItem.toString());
+        // textDocumentService.printDebug(completionItem.toString());
         return completionItem;
     }
 
