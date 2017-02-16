@@ -1,9 +1,12 @@
 package thosakwe.bonobo.analysis;
 
 import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.Token;
 import org.eclipse.lsp4j.*;
+import org.eclipse.lsp4j.jsonrpc.CompletableFutures;
 import org.eclipse.lsp4j.services.TextDocumentService;
 import thosakwe.bonobo.Bonobo;
+import thosakwe.bonobo.ErrorAwareBonoboParser;
 import thosakwe.bonobo.grammar.BonoboParser;
 import thosakwe.bonobo.language.BonoboException;
 import thosakwe.bonobo.language.BonoboLibrary;
@@ -11,9 +14,8 @@ import thosakwe.bonobo.language.BonoboObject;
 import thosakwe.bonobo.language.objects.BonoboFunction;
 
 import java.io.IOException;
+import java.net.URI;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -29,9 +31,18 @@ public class BonoboTextDocumentService implements TextDocumentService {
         this.serverContext = context;
     }
 
-    private BonoboLibrary analyze(String uri) throws IOException {
+    private void ifDebug(Runnable runnable) {
+        if (debug)
+            runnable.run();
+    }
+
+    void printDebug(String message) {
+        ifDebug(() -> System.out.println(message));
+    }
+
+    private BonoboLibrary analyze(String uri) {
         try {
-            BonoboParser parser = Bonobo.parseFile(uri);
+            BonoboParser parser = Bonobo.parseText(serverContext.getUriContents(uri));
             return analyze(parser);
         } catch (IOException exc) {
             return new BonoboLibrary(null);
@@ -39,107 +50,116 @@ public class BonoboTextDocumentService implements TextDocumentService {
     }
 
     private BonoboLibrary analyze(TextDocumentPositionParams textDocumentPositionParams) {
-        try {
-            BonoboParser parser = Bonobo.parseFile(textDocumentPositionParams.getTextDocument().getUri());
-            return analyze(parser);
-        } catch (IOException exc) {
-            return new BonoboLibrary(null);
-        }
+        return analyze(textDocumentPositionParams.getTextDocument().getUri());
     }
 
     private BonoboLibrary analyze(BonoboParser parser) {
         try {
-            StaticAnalyzer analyzer = new StaticAnalyzer(debug);
-            return analyzer.analyzeCompilationUnit(parser.compilationUnit());
+            BonoboParser.CompilationUnitContext ast = parser.compilationUnit();
+            StaticAnalyzer analyzer = new StaticAnalyzer(debug, ast);
+            return analyzer.analyzeCompilationUnit(ast);
         } catch (BonoboException exc) {
             return new BonoboLibrary(parser.compilationUnit());
         }
     }
 
-    private void diagnose(String uri, BonoboParser.CompilationUnitContext ast) {
+    private void diagnose(String uri, BonoboParser.CompilationUnitContext ast, ErrorAwareBonoboParser parser) {
+        List<Diagnostic> diagnosticsList = new ArrayList<>();
+        StaticAnalyzer analyzer = new StaticAnalyzer(debug, ast);
+        ErrorChecker errorChecker = new ErrorChecker(analyzer);
+        List<BonoboException> errors = new ArrayList<>();
+        errors.addAll(parser.getErrors());
+
         try {
-            BonoboLibrary library = analyze(uri);
-            ErrorChecker errorChecker = new ErrorChecker()
-            Diagnostic diagnostic = new Diagnostic();
-            diagnostic.setMessage("WTF LOL");
-            diagnostic.setRange(getNodeRange(ast));
-            diagnostic.setSeverity(DiagnosticSeverity.Error);
-            diagnostic.setSource(ast.getText());
-            serverContext.getLanguageClient().logMessage(new MessageParams(MessageType.Warning, "WTF"));
-            PublishDiagnosticsParams diagnosticsParams = new PublishDiagnosticsParams();
-            List<Diagnostic> diagnosticsList = new ArrayList<>();
-            diagnosticsParams.setUri(uri);
-            diagnosticsList.add(diagnostic);
-            diagnosticsParams.setDiagnostics(diagnosticsList);
-            serverContext.getLanguageClient().publishDiagnostics(diagnosticsParams);
-        } catch (Exception exc) {
-            // Ignore IOException
+            BonoboLibrary library = analyzer.analyzeCompilationUnit(ast);
+            errors.addAll(errorChecker.visitLibrary(library));
+        } catch (BonoboException exc) {
+            errors.add(exc);
         }
+
+        for (BonoboException err : errors) {
+            Diagnostic diagnostic = new Diagnostic();
+            diagnostic.setMessage(err.getMessage());
+            diagnostic.setRange(getNodeRange(err.getMessage(), err.getSource()));
+            diagnostic.setSeverity(DiagnosticSeverity.Error);
+            // diagnostic.setSource(err.getSource().getText());
+            diagnosticsList.add(diagnostic);
+        }
+
+        PublishDiagnosticsParams diagnosticsParams = new PublishDiagnosticsParams();
+        diagnosticsParams.setUri(uri);
+        diagnosticsParams.setDiagnostics(diagnosticsList);
+        printDebug(String.format("Publishing %d error(s) from %s%n", diagnosticsList.size(), uri));
+        serverContext.getLanguageClient().publishDiagnostics(diagnosticsParams);
     }
 
-    private Range getNodeRange(ParserRuleContext ctx) {
+    private Position getTokenPosition(Token token) {
+        int line = token.getLine(), charPositionInLine = token.getCharPositionInLine();
+        return new Position(line > 0 ? line - 1 : line, charPositionInLine);
+    }
+
+    private Range getNodeRange(String message, ParserRuleContext ctx) {
         Range range = new Range();
-        range.getStart().setCharacter(ctx.start.getCharPositionInLine());
-        range.getStart().setLine(ctx.start.getLine());
-        range.getEnd().setCharacter(ctx.stop.getCharPositionInLine());
-        range.getEnd().setCharacter(ctx.stop.getLine());
+        range.setStart(getTokenPosition(ctx.getStart()));
+        range.setEnd(getTokenPosition(ctx.getStop()));
+        printDebug(String.format(
+                "ERR %s: (%d:%d) -> (%d:%d)%n",
+                message,
+                range.getStart().getLine(),
+                range.getStart().getCharacter(),
+                range.getEnd().getLine(),
+                range.getEnd().getCharacter()));
         return range;
     }
 
 
     private void validateTextDocument(String uri, String text) {
-        try {
-            BonoboParser parser = Bonobo.parseText(text);
-            diagnose(uri, parser.compilationUnit());
-        } catch (Exception exc) {
-            System.err.println("Validation error: " + exc.getMessage());
-            exc.printStackTrace();
-        }
+        ErrorAwareBonoboParser parser = Bonobo.parseText(text);
+        diagnose(uri, parser.compilationUnit(), parser);
     }
 
     private void validateTextDocument(TextDocumentIdentifier documentId) {
         try {
-            BonoboParser parser = Bonobo.parseFile(documentId.getUri());
-            diagnose(documentId.getUri(), parser.compilationUnit());
+            String uri = URI.create(documentId.getUri()).getPath();
+            ErrorAwareBonoboParser parser = Bonobo.parseText(serverContext.getUriContents(uri));
+            diagnose(documentId.getUri(), parser.compilationUnit(), parser);
         } catch (Exception exc) {
-            System.err.println("Validation error: " + exc.getMessage());
-            exc.printStackTrace();
+            ifDebug(() -> {
+                System.err.println("Validation error: " + exc.getMessage());
+                exc.printStackTrace();
+            });
         }
     }
 
     private void validateTextDocument(TextDocumentItem document) {
-        try {
-            BonoboParser parser = Bonobo.parseText(document.getText());
-            diagnose(document.getUri(), parser.compilationUnit());
-        } catch (Exception exc) {
-            System.err.println("Validation error: " + exc.getMessage());
-            exc.printStackTrace();
-        }
+        ErrorAwareBonoboParser parser = Bonobo.parseText(document.getText());
+        diagnose(document.getUri(), parser.compilationUnit(), parser);
     }
 
     @Override
-    public CompletableFuture<CompletionList> completion(TextDocumentPositionParams textDocumentPositionParams) {
-        BonoboLibrary library = analyze(textDocumentPositionParams);
-        CompletionList completions = new CompletionList();
-        List<CompletionItem> completionItemList = new ArrayList<>();
-        System.out.printf("Completing for %d export(s) from %s%n", library.getExports().size(), library.getSource().getText());
-
-        for (String name : library.getExports().keySet()) {
-            System.out.printf("Completing %s%n", name);
-            BonoboObject value = library.getExports().get(name);
-            CompletionItem completionItem = new CompletionItem();
-            completionItem.setKind(value instanceof BonoboFunction ? CompletionItemKind.Function : CompletionItemKind.Variable);
-            completionItem.setLabel(name);
-            completionItemList.add(completionItem);
-        }
-
-        completions.setItems(completionItemList);
-        return CompletableFuture.completedFuture(completions);
+    public CompletableFuture<CompletionList> completion(TextDocumentPositionParams params) {
+        return CompletableFutures.computeAsync(cancelToken -> {
+            // cancelToken.checkCanceled();
+            try {
+                String uri = URI.create(params.getTextDocument().getUri()).getPath();
+                printDebug(String.format("Auto-complete %s%n", uri));
+                BonoboParser parser = Bonobo.parseText(serverContext.getUriContents(uri));
+                BonoboParser.CompilationUnitContext ast = parser.compilationUnit();
+                StaticAnalyzer analyzer = new StaticAnalyzer(debug, ast);
+                CodeCompleter codeCompleter = new CodeCompleter(this, parser, analyzer, params.getPosition());
+                return codeCompleter.complete(ast);
+            } catch (IOException exc) {
+                CompletionList completions = new CompletionList();
+                completions.setIsIncomplete(false);
+                completions.setItems(new ArrayList<>());
+                return completions;
+            }
+        });
     }
 
     @Override
     public CompletableFuture<CompletionItem> resolveCompletionItem(CompletionItem completionItem) {
-        // TODO: Wtf is this???
+        // TODO: Resolve completions?
         return CompletableFuture.completedFuture(completionItem);
     }
 
@@ -209,22 +229,34 @@ public class BonoboTextDocumentService implements TextDocumentService {
     }
 
     @Override
-    public void didOpen(DidOpenTextDocumentParams didOpenTextDocumentParams) {
-        validateTextDocument(didOpenTextDocumentParams.getTextDocument());
+    public void didOpen(DidOpenTextDocumentParams params) {
+        serverContext.updateUri(params.getTextDocument().getUri(), params.getTextDocument().getText());
+        validateTextDocument(params.getTextDocument());
     }
 
     @Override
-    public void didChange(DidChangeTextDocumentParams didChangeTextDocumentParams) {
-        validateTextDocument(didChangeTextDocumentParams.getTextDocument());
+    public void didChange(DidChangeTextDocumentParams params) {
+        String text = params.getContentChanges().get(0).getText();
+        serverContext.updateUri(params.getTextDocument().getUri(), text);
+        validateTextDocument(params.getTextDocument().getUri(), text);
     }
 
     @Override
-    public void didClose(DidCloseTextDocumentParams didCloseTextDocumentParams) {
-        validateTextDocument(didCloseTextDocumentParams.getTextDocument());
+    public void didClose(DidCloseTextDocumentParams params) {
+        serverContext.releaseUri(params.getTextDocument().getUri());
+        validateTextDocument(params.getTextDocument());
     }
 
     @Override
-    public void didSave(DidSaveTextDocumentParams didSaveTextDocumentParams) {
-        validateTextDocument(didSaveTextDocumentParams.getTextDocument());
+    public void didSave(DidSaveTextDocumentParams params) {
+        try {
+            serverContext.updateUriFromFilesystem(params.getTextDocument().getUri());
+            validateTextDocument(params.getTextDocument());
+        } catch(Exception exc) {
+            ifDebug(() -> {
+                System.err.println("Error on save: " + exc.getMessage());
+                exc.printStackTrace();
+            });
+        }
     }
 }

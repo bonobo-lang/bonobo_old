@@ -22,7 +22,7 @@ public class BonoboFunctionType extends BonoboType {
     @Override
     public BonoboType typeForInvoke(Collection<BonoboType> arguments, ParserRuleContext source) throws BonoboException {
         // TODO: Create types for invocations
-        return null;
+        return BonoboUnknownType.INSTANCE;
     }
 
     @Override

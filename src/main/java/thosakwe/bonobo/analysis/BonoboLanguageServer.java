@@ -29,7 +29,8 @@ public class BonoboLanguageServer implements LanguageServer, LanguageClientAware
     public CompletableFuture<InitializeResult> initialize(InitializeParams initializeParams) {
         InitializeResult result = new InitializeResult();
         result.setCapabilities(new ServerCapabilities());
-        result.getCapabilities().setCompletionProvider(new CompletionOptions(true, new ArrayList<String>()));
+        result.getCapabilities().setCompletionProvider(new CompletionOptions(false, new ArrayList<>()));
+        // result.getCapabilities().setHoverProvider(true);
         result.getCapabilities().setTextDocumentSync(TextDocumentSyncKind.Full);
         return CompletableFuture.completedFuture(result);
     }

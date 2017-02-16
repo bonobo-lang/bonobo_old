@@ -38,7 +38,7 @@ public class BonoboDumper {
 
         BonoboParser parser = Bonobo.parseFile(args[0]);
         BonoboParser.CompilationUnitContext ast = parser.compilationUnit();
-        StaticAnalyzer analyzer = new StaticAnalyzer(commandLine.hasOption("verbose"));
+        StaticAnalyzer analyzer = new StaticAnalyzer(commandLine.hasOption("verbose"), ast);
         BonoboLibrary library = analyzer.analyzeCompilationUnit(ast);
         dump(library);
         ErrorChecker checker = new ErrorChecker(analyzer);

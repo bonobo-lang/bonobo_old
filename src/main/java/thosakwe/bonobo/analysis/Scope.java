@@ -1,25 +1,30 @@
 package thosakwe.bonobo.analysis;
 
+import org.antlr.v4.runtime.ParserRuleContext;
 import thosakwe.bonobo.language.BonoboObject;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class Scope {
+    private final List<Scope> children = new ArrayList<>();
+    private final ParserRuleContext source;
+    private final List<Symbol> symbols = new ArrayList<>();
     private boolean debug = false;
     private Scope parent = null;
-    private final List<Symbol> symbols = new ArrayList<>();
 
     public Scope() {
-        this(false);
+        this(false, null);
     }
 
-    public Scope(boolean debug) {
+    public Scope(boolean debug, ParserRuleContext source) {
         this.debug = debug;
+        this.source = source;
     }
 
-    private Scope(Scope parent, Collection<Symbol> symbols) {
+    private Scope(Scope parent, Collection<Symbol> symbols, ParserRuleContext source) {
         this();
         this.debug = parent.debug;
         this.parent = parent;
@@ -38,8 +43,10 @@ public class Scope {
     }
 
 
-    public Scope fork() {
-        return new Scope(this, symbols);
+    public Scope fork(ParserRuleContext source) {
+        Scope scope = new Scope(this, symbols, source);
+        children.add(scope);
+        return scope;
     }
 
     public Scope join() {
@@ -49,23 +56,9 @@ public class Scope {
     }
 
     public List<Symbol> getExports(boolean importPrivate) {
-        List<Symbol> exports = new ArrayList<>();
-        List<String> names = new ArrayList<>();
-        Scope scope = this;
-
-        while (scope != null) {
-            for (Symbol symbol : scope.symbols) {
-                if ((importPrivate || symbol.getName().indexOf('_') != 0)
-                        && !names.contains(symbol.getName())) {
-                    exports.add(symbol);
-                    names.add(symbol.getName());
-                }
-            }
-
-            scope = scope.parent;
-        }
-
-        return exports;
+        return getUnique().stream()
+                .filter(symbol -> importPrivate || !symbol.getName().startsWith("_"))
+                .collect(Collectors.toList());
     }
 
     public Scope getRoot() {
@@ -75,6 +68,29 @@ public class Scope {
             root = root.parent;
 
         return root;
+    }
+
+    public List<Symbol> getUnique() {
+        List<Symbol> unique = new ArrayList<>();
+        List<String> names = new ArrayList<>();
+        Scope scope = this;
+
+        while (scope != null) {
+            for (Symbol symbol : scope.symbols) {
+                if (!names.contains(symbol.getName())) {
+                    unique.add(symbol);
+                    names.add(symbol.getName());
+                }
+            }
+
+            scope = scope.parent;
+        }
+
+        return unique;
+    }
+
+    public ParserRuleContext getSource() {
+        return source;
     }
 
     public Symbol getSymbol(String key) {
@@ -105,5 +121,9 @@ public class Scope {
 
         symbols.add(symbol);
         return symbol;
+    }
+
+    public List<Scope> getChildren() {
+        return children;
     }
 }

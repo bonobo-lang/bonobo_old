@@ -1,5 +1,6 @@
 package thosakwe.bonobo.analysis;
 
+import org.antlr.v4.runtime.ParserRuleContext;
 import thosakwe.bonobo.grammar.BonoboParser;
 import thosakwe.bonobo.language.BonoboException;
 import thosakwe.bonobo.language.BonoboLibrary;
@@ -14,8 +15,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class StaticAnalyzer extends BaseStaticAnalyzer {
-    public StaticAnalyzer(boolean debug) {
-        super(debug);
+    public StaticAnalyzer(boolean debug, BonoboParser.CompilationUnitContext source) {
+        super(debug, source);
     }
 
     public BonoboLibrary analyzeCompilationUnit(BonoboParser.CompilationUnitContext ctx) throws BonoboException {
@@ -26,7 +27,7 @@ public class StaticAnalyzer extends BaseStaticAnalyzer {
                 BonoboFunction function = analyzeTopLevelFunctionDefinition((BonoboParser.TopLevelFuncDefContext) topLevelDefContext);
                 getScope().putFinal(function.getName(), function);
 
-                if (!function.getName().startsWith("_"))
+                if (function.getName() != null && !function.getName().startsWith("_"))
                     library.addExport(function.getName(), function, function.getSource());
             } else if (topLevelDefContext instanceof BonoboParser.ConstDefContext) {
                 Map<String, BonoboObject> variables = analyzeConstantDefinition((BonoboParser.ConstDefContext) topLevelDefContext);
@@ -62,19 +63,20 @@ public class StaticAnalyzer extends BaseStaticAnalyzer {
         BonoboParser.FuncSignatureContext signature = ctx.funcSignature();
 
         // Get name
-        function.setName(signature.name.getText());
+        if (signature != null) {
+            function.setName(signature.name.getText());
 
-        // Add params
-        for (BonoboParser.ParamSpecContext paramSpec : signature.params) {
-            function.getParameters().add(analyzeParameterSpecification(paramSpec));
+            // Add params
+            for (BonoboParser.ParamSpecContext paramSpec : signature.params) {
+                function.getParameters().add(analyzeParameterSpecification(paramSpec));
+            }
+
+            // Get return type if specified
+            if (signature.returnType != null) {
+                function.setReturnType(analyzeType(signature.returnType));
+            }
         }
 
-        // Get return type if specified
-        if (signature.returnType != null) {
-            function.setReturnType(analyzeType(signature.returnType));
-        }
-
-        // TODO: Check all possible paths to ensure value is of correct return type
         // TODO: If not explicitly specified, try to infer a return type
 
         return function;
@@ -124,7 +126,7 @@ public class StaticAnalyzer extends BaseStaticAnalyzer {
             return new BonoboListType(analyzeType(((BonoboParser.ListTypeContext) ctx).type()));
         }
 
-        return null;
+        return BonoboUnknownType.INSTANCE;
     }
 
     public BonoboObject analyzeExpression(BonoboParser.ExprContext ctx) throws BonoboException {
@@ -179,5 +181,9 @@ public class StaticAnalyzer extends BaseStaticAnalyzer {
 
         // TODO: All expressions
         return new BonoboObjectImpl(BonoboUnknownType.INSTANCE, ctx);
+    }
+
+    public void analyzeContext(ParserRuleContext ctx) {
+
     }
 }

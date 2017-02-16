@@ -1,5 +1,6 @@
 package thosakwe.bonobo.analysis;
 
+import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.misc.Pair;
 import thosakwe.bonobo.Bonobo;
 import thosakwe.bonobo.grammar.BonoboParser;
@@ -53,7 +54,7 @@ public class ErrorChecker {
         List<BonoboException> result = new ArrayList<>();
 
         // Push scope and load parameters
-        analyzer.pushScope();
+        analyzer.pushScope(source);
 
         for (BonoboFunctionParameter parameter : function.getParameters()) {
             analyzer.getScope().putFinal(parameter.getName(), new BonoboObjectImpl(parameter.getType(), parameter.getSource()));
@@ -68,7 +69,7 @@ public class ErrorChecker {
             BonoboType actuallyReturned = stmtResult.a;
 
             if (!actuallyReturned.isAssignableTo(function.getReturnType())) {
-                result.add(BonoboException.invalidReturnForFunction(function, actuallyReturned, source));
+                result.add(BonoboException.invalidReturnForFunction(function, actuallyReturned, source.funcSignature()));
             }
         } else if (bodyContext instanceof BonoboParser.BlockBodyContext) {
             // Walk through every statement, checking for typing errors
@@ -94,7 +95,12 @@ public class ErrorChecker {
                 BonoboType actuallyReturned = stmtResult.a;
 
                 if (!actuallyReturned.isAssignableTo(function.getReturnType())) {
-                    result.add(BonoboException.invalidReturnForFunction(function, actuallyReturned, function.getSource()));
+                    ParserRuleContext source = function.getSource();
+
+                    if (source instanceof BonoboParser.TopLevelFuncDefContext)
+                        source = ((BonoboParser.TopLevelFuncDefContext) source).funcSignature();
+
+                    result.add(BonoboException.invalidReturnForFunction(function, actuallyReturned, source));
                 }
             }
         }
@@ -109,7 +115,7 @@ public class ErrorChecker {
             if (ctx instanceof BonoboParser.ForEachStmtContext) {
                 String name = ((BonoboParser.ForEachStmtContext) ctx).name.getText();
                 BonoboObject iterable = analyzer.analyzeExpression(((BonoboParser.ForEachStmtContext) ctx).expr());
-                analyzer.pushScope();
+                analyzer.pushScope(ctx);
 
                 if (!iterable.getType().isAssignableTo(BonoboListType.TYPEOF)) {
                     errors.add(new BonoboException(

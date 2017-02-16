@@ -5,6 +5,7 @@ import org.eclipse.lsp4j.jsonrpc.Launcher;
 import org.eclipse.lsp4j.launch.LSPLauncher;
 import org.eclipse.lsp4j.services.LanguageClient;
 import thosakwe.bonobo.Bonobo;
+import thosakwe.bonobo.ErrorAwareBonoboParser;
 import thosakwe.bonobo.analysis.BonoboLanguageServer;
 import thosakwe.bonobo.analysis.ErrorChecker;
 import thosakwe.bonobo.analysis.StaticAnalyzer;
@@ -16,6 +17,7 @@ import thosakwe.bonobo.language.BonoboLibrary;
 
 import java.io.*;
 import java.net.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -46,7 +48,7 @@ public class CompilerFrontend {
             }
 
             String filename = new File(commandLine.getArgs()[0]).getAbsolutePath();
-            BonoboParser parser = Bonobo.parseFile(filename);
+            ErrorAwareBonoboParser parser = Bonobo.parseFile(filename);
             BonoboParser.CompilationUnitContext ast = parser.compilationUnit();
 
             String outputFilename;
@@ -69,10 +71,12 @@ public class CompilerFrontend {
 
             // Analyze and check for errors
             try {
-                StaticAnalyzer analyzer = new StaticAnalyzer(compiler.isDebug());
+                StaticAnalyzer analyzer = new StaticAnalyzer(compiler.isDebug(), ast);
                 BonoboLibrary library = analyzer.analyzeCompilationUnit(ast);
                 ErrorChecker errorChecker = new ErrorChecker(analyzer);
-                List<BonoboException> errors = errorChecker.visitLibrary(library);
+                List<BonoboException> errors = new ArrayList<>();
+                errors.addAll(parser.getErrors());
+                errors.addAll(errorChecker.visitLibrary(library));
 
                 if (!errors.isEmpty()) {
                     System.err.printf("%d compiler error(s):%n%n", errors.size());
@@ -104,7 +108,6 @@ public class CompilerFrontend {
         }
     }
 
-
     private static void languageServerMain(CommandLine commandLine) throws IOException {
         if (commandLine.hasOption("write-stdout")) {
             try {
@@ -124,18 +127,50 @@ public class CompilerFrontend {
         }
 
         ServerSocket serverSocket = new ServerSocket();
-        InetSocketAddress address = new InetSocketAddress(InetAddress.getLocalHost(), Integer.parseInt(commandLine.getOptionValue("port", "2359")));
+        InetSocketAddress address = new InetSocketAddress(InetAddress.getLoopbackAddress(), Integer.parseInt(commandLine.getOptionValue("port", "2359")));
         serverSocket.bind(address);
         System.out.printf("Bonobo language server now listening at %s:%d%n", address.getAddress().getCanonicalHostName(), address.getPort());
 
         while (true) {
             Socket client = serverSocket.accept();
-            System.out.printf("New client connection: %s:%d%n", client.getInetAddress().getCanonicalHostName(), client.getPort());
-            BonoboLanguageServer server = new BonoboLanguageServer(commandLine.hasOption("verbose"));
-            Launcher<LanguageClient> launcher = LSPLauncher.createServerLauncher(server, client.getInputStream(), client.getOutputStream());
-            server.connect(launcher.getRemoteProxy());
-            launcher.startListening();
+            new Thread(() -> {
+                try {
+                    BonoboLanguageServer server = new BonoboLanguageServer(commandLine.hasOption("verbose"));
+                    Launcher<LanguageClient> launcher = LSPLauncher.createServerLauncher(server, client.getInputStream(), middleman(client.getOutputStream(), commandLine));
+                    server.connect(launcher.getRemoteProxy());
+                    launcher.startListening();
+                } catch (IOException exc) {
+                    try {
+                        client.close();
+                    } catch (IOException exc2) {
+                        System.err.printf("Could not close failed client from %s:%d%n", client.getInetAddress().getCanonicalHostName(), client.getPort());
+                    }
+                }
+            }).start();
         }
+    }
+
+    private static OutputStream middleman(OutputStream outputStream, CommandLine commandLine) {
+        if (!commandLine.hasOption("verbose"))
+            return outputStream;
+        else return new OutputStream() {
+            @Override
+            public void write(byte[] b, int off, int len) throws IOException {
+                StringBuilder buf = new StringBuilder();
+
+                for (int i = 0; i < len; i++) {
+                    buf.appendCodePoint(b[off + i]);
+                }
+
+                System.out.println("SENDING: " + buf.toString());
+                super.write(b, off, len);
+            }
+
+            @Override
+            public void write(int b) throws IOException {
+                outputStream.write(b);
+            }
+        };
     }
 
     private static Options makeCliOptions() {

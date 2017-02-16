@@ -48,7 +48,6 @@ public class CodeBuilder extends StringWriter {
         indentationLevel = 0;
     }
 
-    // Todo: Replace all builder.println(String.format(...)) with this
     public void printf(String format, Object... args) {
         print(String.format(format.replaceAll("%n", "\n"), args));
     }

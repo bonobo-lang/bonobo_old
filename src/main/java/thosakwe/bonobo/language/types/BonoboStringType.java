@@ -12,6 +12,11 @@ public class BonoboStringType extends BonoboListType {
     }
 
     @Override
+    public String getName() {
+        return "String";
+    }
+
+    @Override
     public BonoboType typeForAdd(BonoboType otherType, ParserRuleContext source) throws BonoboException {
         return INSTANCE;
     }
