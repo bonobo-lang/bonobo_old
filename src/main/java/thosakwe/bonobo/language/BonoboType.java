@@ -2,16 +2,13 @@ package thosakwe.bonobo.language;
 
 
 import org.antlr.v4.runtime.ParserRuleContext;
-import thosakwe.bonobo.language.types.BonoboAbstractClassImpl;
 import thosakwe.bonobo.language.types.BonoboUnknownType;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
 public abstract class BonoboType {
-
     private final List<BonoboClassMember> members = new ArrayList<>();
+    private final Map<String, BonoboObject> staticMembers = new HashMap<>();
     private BonoboType parentType = null;
 
     public BonoboType() {}
@@ -74,7 +71,11 @@ public abstract class BonoboType {
 
     public abstract BonoboType typeForModulo(BonoboType otherType, ParserRuleContext source) throws BonoboException;
 
-    public BonoboType typeForIndex(BonoboType index, ParserRuleContext source) throws BonoboException {
-        throw new BonoboException(String.format("A(n) type %s cannot be indexed by a(n) %s.", getName(), index.getName()), source);
+    public BonoboType typeForGetIndex(BonoboType index, ParserRuleContext source) throws BonoboException {
+        throw new BonoboException(String.format("Type %s cannot be indexed by a(n) %s.", getName(), index.getName()), source);
+    }
+
+    public BonoboType typeForSetIndex(BonoboType index, BonoboType value, ParserRuleContext source) throws BonoboException {
+        throw new BonoboException(String.format("Type %s does not support assignment via index.", getName()), source);
     }
 }

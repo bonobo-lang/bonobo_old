@@ -49,10 +49,12 @@ expr:
     | INT #IntegerLiteralExpr
     | DBL #DoubleLiteralExpr
     | STRING #StringLiteralExpr
+    | expr '.' ID #MemberExpr
     | expr 'as' type #TypeCastExpr
     | target=expr '[' index=expr ']' #IndexerExpr
     | '(' lower=expr '.' '.' exclusive='.'? upper=expr ')' #RangeLiteralExpr
-    | '(' (expr ',')+ expr ')' #ListLiteralExpr
+    | type BRACKETS #EmptyListLiteralExpr
+    | '[' (expr ',')+ expr ']' #ListLiteralExpr
     | callee=expr '(' ((args+=expr ',')* args+=expr)? ')' #InvocationExpr
     | left=expr right=expr #AdjacentExprs
     | left=expr assignmentOp right=expr #AssignmentExpr

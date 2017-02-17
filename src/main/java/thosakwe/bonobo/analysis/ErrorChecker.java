@@ -153,6 +153,25 @@ public class ErrorChecker {
                 }
             }
 
+            if (ctx instanceof BonoboParser.InlineFuncDeclStmtContext) {
+                BonoboParser.InlineFuncDeclStmtContext inlineFuncDeclStmtContext = (BonoboParser.InlineFuncDeclStmtContext) ctx;
+                BonoboFunction result = new BonoboFunction(ctx);
+                result.setName(inlineFuncDeclStmtContext.funcSignature().name.getText());
+
+                for (BonoboParser.ParamSpecContext paramSpec : inlineFuncDeclStmtContext.funcSignature().params) {
+                    result.getParameters().add(analyzer.analyzeParameterSpecification(paramSpec));
+                }
+
+                BonoboType returnType;
+
+                if (inlineFuncDeclStmtContext.funcSignature().returnType != null)
+                    returnType = analyzer.analyzeType(inlineFuncDeclStmtContext.funcSignature().returnType);
+                else returnType = analyzer.analyzeExpression(inlineFuncDeclStmtContext.expr()).getType();
+                result.setReturnType(returnType);
+
+                return new Pair<>(result.getType(), errors);
+            }
+
             if (ctx instanceof BonoboParser.ReturnStmtContext) {
                 return new Pair<>(analyzer.analyzeExpression(((BonoboParser.ReturnStmtContext) ctx).expr()).getType(), errors);
             }

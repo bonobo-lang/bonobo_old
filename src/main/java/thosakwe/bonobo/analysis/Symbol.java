@@ -33,7 +33,7 @@ public class Symbol {
 
     public void setValue(BonoboObject value, ParserRuleContext source) throws BonoboException {
         if (isFinal())
-            throw new BonoboException(String.format("Cannot overwrite symbol \"%s\".", name), source);
+            throw new BonoboException(String.format("Cannot overwrite immutable symbol \"%s\".", name), source);
         this.value = value;
     }
 

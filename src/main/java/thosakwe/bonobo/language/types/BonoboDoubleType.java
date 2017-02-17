@@ -15,7 +15,7 @@ public class BonoboDoubleType extends BonoboType {
 
     @Override
     public String getName() {
-        return "Double";
+        return "double";
     }
 
     @Override

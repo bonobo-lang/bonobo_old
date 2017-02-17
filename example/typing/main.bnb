@@ -2,16 +2,16 @@
 
 const one = 1.0;
 const three = -3;
-const doubles = (1.0, -2.3);
-const numbers = (1, 2.0);
-const listOfListsofLists = (((1, 2), (1, 2)), ((1, 2), (1, 2)));
+const doubles = [1.0, -2.3];
+const numbers = [1, 2.0];
+const listOfListsofLists = [[[1, 2], [1, 2]], [[1, 2], [1, 2]]];
 const myString = "Hello, world!";
 const _private = "Not exported";
 
-fn foo(id:int):num[][] => ((3, 1), (4, id));
+fn foo(id:int):num[][] => [[3, 1], [4, id]];
 
 fn bar():int[] {
     let x = 2;
-    let nums = (x, 2);
+    let nums = [x, 2];
     return nums;
 }

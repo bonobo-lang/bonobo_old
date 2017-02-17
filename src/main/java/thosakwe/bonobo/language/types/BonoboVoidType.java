@@ -9,6 +9,6 @@ public class BonoboVoidType extends BonoboAbstractClassImpl {
     public static final BonoboVoidType INSTANCE = new BonoboVoidType();
 
     private BonoboVoidType() {
-        super("Void");
+        super("void");
     }
 }

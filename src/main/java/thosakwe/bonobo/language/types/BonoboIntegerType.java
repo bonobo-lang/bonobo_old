@@ -15,7 +15,7 @@ public class BonoboIntegerType extends BonoboType {
 
     @Override
     public String getName() {
-        return "Integer";
+        return "int";
     }
 
     @Override

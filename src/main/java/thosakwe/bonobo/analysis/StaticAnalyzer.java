@@ -2,10 +2,7 @@ package thosakwe.bonobo.analysis;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 import thosakwe.bonobo.grammar.BonoboParser;
-import thosakwe.bonobo.language.BonoboException;
-import thosakwe.bonobo.language.BonoboLibrary;
-import thosakwe.bonobo.language.BonoboObject;
-import thosakwe.bonobo.language.BonoboType;
+import thosakwe.bonobo.language.*;
 import thosakwe.bonobo.language.objects.BonoboFunction;
 import thosakwe.bonobo.language.objects.BonoboFunctionParameter;
 import thosakwe.bonobo.language.objects.BonoboObjectImpl;
@@ -15,7 +12,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 public class StaticAnalyzer extends BaseStaticAnalyzer {
     public StaticAnalyzer(boolean debug, BonoboParser.CompilationUnitContext source) {
@@ -154,6 +150,20 @@ public class StaticAnalyzer extends BaseStaticAnalyzer {
             return new BonoboObjectImpl(BonoboStringType.INSTANCE, ctx);
         }
 
+        if (ctx instanceof BonoboParser.MemberExprContext) {
+            BonoboParser.MemberExprContext memberExprContext = (BonoboParser.MemberExprContext) ctx;
+            BonoboObject target = analyzeExpression(memberExprContext.expr());
+            String name = memberExprContext.ID().getText();
+
+            for (BonoboClassMember member : target.getType().getMembers()) {
+                if (member.getName().equals(name)) {
+                    return new BonoboObjectImpl(member.getValue(ctx), ctx);
+                }
+            }
+
+            throw BonoboException.unresolvedGetter(target.getType(), name, ctx);
+        }
+
         if (ctx instanceof BonoboParser.TypeCastExprContext) {
             BonoboParser.TypeCastExprContext typeCastExprContext = (BonoboParser.TypeCastExprContext) ctx;
             BonoboObject object = analyzeExpression(typeCastExprContext.expr());
@@ -168,7 +178,7 @@ public class StaticAnalyzer extends BaseStaticAnalyzer {
             BonoboParser.IndexerExprContext indexerExprContext = (BonoboParser.IndexerExprContext) ctx;
             BonoboObject target = analyzeExpression(indexerExprContext.target);
             BonoboObject index = analyzeExpression(indexerExprContext.index);
-            return new BonoboObjectImpl(target.getType().typeForIndex(index.getType(), ctx), ctx);
+            return new BonoboObjectImpl(target.getType().typeForGetIndex(index.getType(), ctx), ctx);
         }
 
         if (ctx instanceof BonoboParser.RangeLiteralExprContext) {
@@ -179,6 +189,10 @@ public class StaticAnalyzer extends BaseStaticAnalyzer {
             if (commonType == null)
                 throw BonoboException.noCommonTypeFor("list literal", ctx);
             return new BonoboObjectImpl(new BonoboListType(commonType), ctx);
+        }
+
+        if (ctx instanceof BonoboParser.EmptyListLiteralExprContext) {
+            return new BonoboObjectImpl(new BonoboListType(analyzeType(((BonoboParser.EmptyListLiteralExprContext) ctx).type())), ctx);
         }
 
         if (ctx instanceof BonoboParser.ListLiteralExprContext) {
@@ -213,6 +227,137 @@ public class StaticAnalyzer extends BaseStaticAnalyzer {
             }
 
             return new BonoboObjectImpl(callee.getType().typeForInvoke(args, ctx), ctx);
+        }
+
+        if (ctx instanceof BonoboParser.AdjacentExprsContext) {
+            BonoboParser.AdjacentExprsContext binary = (BonoboParser.AdjacentExprsContext) ctx;
+            BonoboObject left = analyzeExpression(binary.left), right = analyzeExpression(binary.right);
+            return new BonoboObjectImpl(left.getType().typeForMultiply(right.getType(), ctx), ctx);
+        }
+
+        if (ctx instanceof BonoboParser.AssignmentExprContext) {
+            // TODO: Assignment operators should all function differently!!!
+            BonoboParser.AssignmentExprContext assignmentExprContext = (BonoboParser.AssignmentExprContext) ctx;
+
+            if (assignmentExprContext.left instanceof BonoboParser.IdentifierExprContext) {
+                String name = ((BonoboParser.IdentifierExprContext) assignmentExprContext.left).ID().getText();
+                Symbol resolved = getScope().getSymbol(name);
+
+                if (resolved == null)
+                    throw BonoboException.unresolvedIdentifier(name, assignmentExprContext.left);
+                resolved.setValue(analyzeExpression(assignmentExprContext.right), ctx);
+                return resolved.getValue();
+            } else if (assignmentExprContext.left instanceof BonoboParser.MemberExprContext) {
+                BonoboParser.MemberExprContext memberExprContext = (BonoboParser.MemberExprContext) assignmentExprContext.left;
+                BonoboObject target = analyzeExpression(memberExprContext.expr());
+                String name = memberExprContext.ID().getText();
+                BonoboObject right = analyzeExpression(assignmentExprContext.right);
+
+                for (BonoboClassMember member : target.getType().getMembers()) {
+                    if (member.getName().equals(name)) {
+                        return new BonoboObjectImpl(member.setValue(right.getType(), assignmentExprContext.right), ctx);
+                    }
+                }
+
+                throw BonoboException.unresolvedSetter(target.getType(), name, assignmentExprContext.left);
+            } else if (assignmentExprContext.left instanceof BonoboParser.IndexerExprContext) {
+                BonoboParser.IndexerExprContext indexerExprContext = (BonoboParser.IndexerExprContext) assignmentExprContext.left;
+                BonoboObject target = analyzeExpression(indexerExprContext.target),
+                        index = analyzeExpression(indexerExprContext.index),
+                        right = analyzeExpression(assignmentExprContext.right);
+                return new BonoboObjectImpl(target.getType().typeForSetIndex(index.getType(), right.getType(), ctx), ctx);
+            } else {
+                BonoboObject left = analyzeExpression(assignmentExprContext.left);
+                throw new BonoboException(String.format("Cannot assign to %s.", left.getType().getName()), ctx);
+            }
+        }
+
+        if (ctx instanceof BonoboParser.PowerExprContext) {
+            BonoboParser.PowerExprContext binary = (BonoboParser.PowerExprContext) ctx;
+            BonoboObject left = analyzeExpression(binary.left), right = analyzeExpression(binary.right);
+            return new BonoboObjectImpl(left.getType().typeForPow(right.getType(), ctx), ctx);
+        }
+
+        if (ctx instanceof BonoboParser.MultiplicationExprContext) {
+            BonoboParser.MultiplicationExprContext binary = (BonoboParser.MultiplicationExprContext) ctx;
+            BonoboObject left = analyzeExpression(binary.left), right = analyzeExpression(binary.right);
+            return new BonoboObjectImpl(left.getType().typeForMultiply(right.getType(), ctx), ctx);
+        }
+
+        if (ctx instanceof BonoboParser.DivisionExprContext) {
+            BonoboParser.DivisionExprContext binary = (BonoboParser.DivisionExprContext) ctx;
+            BonoboObject left = analyzeExpression(binary.left), right = analyzeExpression(binary.right);
+            return new BonoboObjectImpl(left.getType().typeForDivide(right.getType(), ctx), ctx);
+        }
+
+        if (ctx instanceof BonoboParser.AdditionExprContext) {
+            BonoboParser.AdditionExprContext binary = (BonoboParser.AdditionExprContext) ctx;
+            BonoboObject left = analyzeExpression(binary.left), right = analyzeExpression(binary.right);
+            return new BonoboObjectImpl(left.getType().typeForAdd(right.getType(), ctx), ctx);
+        }
+
+        if (ctx instanceof BonoboParser.SubtractionExprContext) {
+            BonoboParser.SubtractionExprContext binary = (BonoboParser.SubtractionExprContext) ctx;
+            BonoboObject left = analyzeExpression(binary.left), right = analyzeExpression(binary.right);
+            return new BonoboObjectImpl(left.getType().typeForSubtract(right.getType(), ctx), ctx);
+        }
+
+        if (ctx instanceof BonoboParser.ModuloExprContext) {
+            BonoboParser.ModuloExprContext binary = (BonoboParser.ModuloExprContext) ctx;
+            BonoboObject left = analyzeExpression(binary.left), right = analyzeExpression(binary.right);
+            return new BonoboObjectImpl(left.getType().typeForModulo(right.getType(), ctx), ctx);
+        }
+
+        if (ctx instanceof BonoboParser.PlusMinusExprContext) {
+            BonoboParser.PlusMinusExprContext binary = (BonoboParser.PlusMinusExprContext) ctx;
+            BonoboObject left = analyzeExpression(binary.left), right = analyzeExpression(binary.right);
+            BonoboType plusType = left.getType().typeForAdd(right.getType(), ctx),
+                    minusType = left.getType().typeForAdd(right.getType(), ctx);
+            BonoboType commonParentType = plusType.getCommonParentType(minusType);
+
+            if (commonParentType == null)
+                throw BonoboException.noCommonTypeFor("plus/minus expression", ctx);
+            return new BonoboObjectImpl(new BonoboListType(commonParentType), ctx);
+        }
+
+        if (ctx instanceof BonoboParser.EqualsExprContext) {
+            BonoboParser.EqualsExprContext binary = (BonoboParser.EqualsExprContext) ctx;
+            BonoboObject left = analyzeExpression(binary.left), right = analyzeExpression(binary.right);
+            BonoboType commonParentType = left.getType().getCommonParentType(right.getType());
+
+            if (commonParentType == null)
+                throw BonoboException.incomparableTypes(left.getType(), right.getType(), ctx);
+            return new BonoboObjectImpl(BonoboBooleanType.INSTANCE, ctx);
+        }
+
+        if (ctx instanceof BonoboParser.NotEqualsExprContext) {
+            BonoboParser.NotEqualsExprContext binary = (BonoboParser.NotEqualsExprContext) ctx;
+            BonoboObject left = analyzeExpression(binary.left), right = analyzeExpression(binary.right);
+            BonoboType commonParentType = left.getType().getCommonParentType(right.getType());
+
+            if (commonParentType == null)
+                throw BonoboException.incomparableTypes(left.getType(), right.getType(), ctx);
+            return new BonoboObjectImpl(BonoboBooleanType.INSTANCE, ctx);
+        }
+
+        if (ctx instanceof BonoboParser.AndExprContext) {
+            BonoboParser.AndExprContext binary = (BonoboParser.AndExprContext) ctx;
+            BonoboObject left = analyzeExpression(binary.left), right = analyzeExpression(binary.right);
+
+            if (!(left.getType().isAssignableTo(BonoboBooleanType.INSTANCE)
+                    && right.getType().isAssignableTo(BonoboBooleanType.INSTANCE)))
+                throw BonoboException.logicalComparison(ctx);
+            return new BonoboObjectImpl(BonoboBooleanType.INSTANCE, ctx);
+        }
+
+        if (ctx instanceof BonoboParser.OrExprContext) {
+            BonoboParser.OrExprContext binary = (BonoboParser.OrExprContext) ctx;
+            BonoboObject left = analyzeExpression(binary.left), right = analyzeExpression(binary.right);
+
+            if (!(left.getType().isAssignableTo(BonoboBooleanType.INSTANCE)
+                    && right.getType().isAssignableTo(BonoboBooleanType.INSTANCE)))
+                throw BonoboException.logicalComparison(ctx);
+            return new BonoboObjectImpl(BonoboBooleanType.INSTANCE, ctx);
         }
 
         if (ctx instanceof BonoboParser.ParenthesizedExprContext) {

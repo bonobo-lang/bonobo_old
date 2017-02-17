@@ -15,7 +15,7 @@ public class BonoboByteType extends BonoboType {
 
     @Override
     public String getName() {
-        return "Byte";
+        return "byte";
     }
 
     @Override

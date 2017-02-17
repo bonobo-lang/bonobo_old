@@ -13,7 +13,7 @@ public class BonoboNumberType extends BonoboType {
 
     @Override
     public String getName() {
-        return "Number";
+        return "number";
     }
 
     public BonoboType modulo(BonoboType left, BonoboType right, ParserRuleContext source) throws BonoboException {

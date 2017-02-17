@@ -72,4 +72,29 @@ public class BonoboException extends Exception {
     public static BonoboException noCommonTypeFor(String container, ParserRuleContext source) {
         return new BonoboException(String.format("Cannot resolve common type from values in this %s. Ensure that all members share a common base type.", container), source);
     }
+
+    public static BonoboException incomparableTypes(BonoboType left, BonoboType right, ParserRuleContext source) {
+        return new BonoboException(
+                String.format(
+                        "Instances of %s and %s cannot be compared, as they do not share a base type.",
+                        left.getName(),
+                        right.getName()),
+                source);
+    }
+
+    public static BonoboException logicalComparison(ParserRuleContext source) {
+        return new BonoboException("Logical comparisons may only be performed on two booleans.", source);
+    }
+
+    private static BonoboException unresolvedMember(BonoboType type, String name, String accessorType, ParserRuleContext source) {
+        return new BonoboException(String.format("Type %s has no %s named \"%s\".", type.getName(), accessorType, name), source);
+    }
+
+    public static BonoboException unresolvedGetter(BonoboType type, String name, ParserRuleContext source) {
+        return unresolvedMember(type, name, "getter", source);
+    }
+
+    public static BonoboException unresolvedSetter(BonoboType type, String name, ParserRuleContext source) {
+        return unresolvedMember(type, name, "setter", source);
+    }
 }

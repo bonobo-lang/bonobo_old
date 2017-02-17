@@ -8,16 +8,26 @@ import java.util.Collection;
 
 public class BonoboAbstractClassImpl extends BonoboType {
     public static final BonoboAbstractClassImpl TYPEOF = new BonoboAbstractClassImpl("Type");
-
     private final String name;
+    private final BonoboType parentType;
 
     public BonoboAbstractClassImpl(String name) {
+        this(name, null);
+    }
+
+    public BonoboAbstractClassImpl(String name, BonoboType parentType) {
         this.name = name;
+        this.parentType = parentType;
     }
 
     @Override
     public String getName() {
         return name;
+    }
+
+    @Override
+    public BonoboType getParentType() {
+        return parentType;
     }
 
     private BonoboType typeForArithmetic(String operator, BonoboType otherType, ParserRuleContext source) throws BonoboException {

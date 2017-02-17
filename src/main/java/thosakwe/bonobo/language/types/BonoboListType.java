@@ -6,14 +6,14 @@ import thosakwe.bonobo.language.BonoboType;
 
 import java.util.Collection;
 
-public class BonoboListType extends BonoboType {
+public class BonoboListType extends BonoboGenericType {
     public static final BonoboType TYPEOF = new BonoboAbstractClassImpl("List");
 
     private final BonoboType referenceType;
 
     public BonoboListType(BonoboType referenceType) {
-        super(TYPEOF);
-        this.referenceType = referenceType;
+        super("List", TYPEOF);
+        getTypeParameters().add(new BonoboTypeParameter("T", this.referenceType = referenceType));
     }
 
     @Override
@@ -32,7 +32,7 @@ public class BonoboListType extends BonoboType {
     }
 
     @Override
-    public BonoboType typeForIndex(BonoboType index, ParserRuleContext source) throws BonoboException {
+    public BonoboType typeForGetIndex(BonoboType index, ParserRuleContext source) throws BonoboException {
         if (!index.isAssignableTo(BonoboIntegerType.INSTANCE))
             throw new BonoboException(String.format("Lists can only be indexed by integers. You tried using an instance of %s instead.", index.getName()), source);
         return referenceType;

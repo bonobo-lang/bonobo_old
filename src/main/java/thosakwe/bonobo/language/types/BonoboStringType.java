@@ -13,7 +13,7 @@ public class BonoboStringType extends BonoboListType {
 
     @Override
     public String getName() {
-        return "String";
+        return "string";
     }
 
     @Override
