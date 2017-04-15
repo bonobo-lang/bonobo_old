@@ -1,8 +1,8 @@
 fn quad(a:int, b, c) {
-  // 4a c = (4 * a) * c
+  // 4a c = 4 * a * c
   // All identifiers must start with a lowercase letter, that's why this works.
-  // '+-' op returns tuple :)
-  let alternatives = b +- sqrt(b^2 - 4a c);
+  // '±' op returns tuple :)
 
+  let alternatives = b ± sqrt(b^2 - 4a c);
   return alternatives / 2a;
 }

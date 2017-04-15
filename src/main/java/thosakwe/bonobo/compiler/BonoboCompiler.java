@@ -1,5 +1,7 @@
 package thosakwe.bonobo.compiler;
 
+import thosakwe.bonobo.analysis.ErrorChecker;
+import thosakwe.bonobo.analysis.StaticAnalyzer;
 import thosakwe.bonobo.language.BonoboLibrary;
 
 import java.io.IOException;
@@ -15,7 +17,7 @@ public abstract class BonoboCompiler {
         this.debug = debug;
     }
 
-    public abstract void compile(BonoboLibrary library, OutputStream outputStream) throws IOException;
+    public abstract void compile(BonoboLibrary library, StaticAnalyzer analyzer, ErrorChecker errorChecker, OutputStream outputStream) throws IOException;
 
     protected void printDebug(String message) {
         if (debug)

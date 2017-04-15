@@ -90,7 +90,7 @@ public class CompilerFrontend {
                         ));
                     }
                 } else {
-                    compiler.compile(library, out);
+                    compiler.compile(library, analyzer, errorChecker, out);
                 }
 
             } catch (BonoboException exc) {
